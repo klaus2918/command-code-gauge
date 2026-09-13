@@ -40,8 +40,13 @@ ArchitecturesInstallIn64BitMode=x64compatible
 AppMutex=CCGauge_SingleInstance_Mutex
 
 [Languages]
+; 英文用编译器内置 Default.isl（Languages\English.isl 实际并不随发行版提供）
+Name: "english"; MessagesFile: "compiler:Default.isl"
+; 中文语言包为“官方翻译”，但部分 Inno Setup 发行版未随包提供；
+; 编译期检测存在性，缺失时自动只出英文版，避免整份脚本编译失败
+#if FileExists(AddBackslash(CompilerPath) + "Languages\ChineseSimplified.isl")
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-Name: "english"; MessagesFile: "compiler:Languages\English.isl"
+#endif
 
 [Tasks]
 ; 桌面快捷方式：默认不勾选，由用户在安装向导中决定
