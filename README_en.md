@@ -68,7 +68,7 @@ node --test "tests/js/*.test.mjs"     # frontend token-unit formatting (Node's b
 - **Official plan & model data**: from public `commandcode.ai` docs pages (`/docs/plans/<plan>`, `/docs/resources/pricing-limits`) — no login, no credentials attached. There is no official JSON API for these tables, so they are parsed from the page, cached locally for 24 hours, and fall back to the previous snapshot (with the fetch time shown on the Models page) when fetching or parsing fails
 - **Estimates**: on the Models page, cache-read tokens are derived from cache cost ÷ official cache rate (the local DB does not store cache-read counts) and are labelled as estimates; “affordable requests” = model monthly allowance ÷ your measured average cost per request, with the ratio to the official estimate in brackets
 - Costs are raw USD; the panel supports **USD / CNY / both** display modes (switchable in Settings), with CNY converted at the live [open.er-api.com](https://open.er-api.com) rate (24-hour cache, gracefully falls back to USD only)
-- **Token unit modes**: **Chinese units** (万亿 / 亿 / 千万 / 百万 / 万; values below 10,000 stay plain — e.g. `2.48亿`, `97.83万`, `7719`), **English units** (`247.51M`) or **plain numbers** (`247,506,388`) — switchable in Settings; until you pick one, the mode follows the UI language (Chinese → Chinese units, English → English units)
+- **Token unit modes**: **Chinese units** (亿 / 万; values below 10,000 stay plain — e.g. `2.48亿`, `120万`, `7719`), **English units** (`247.51M`) or **plain numbers** (`247,506,388`) — switchable in Settings; until you pick one, the mode follows the UI language (Chinese → Chinese units, English → English units)
 - Records are deduplicated by server record id; incremental sync is idempotent
 
 ## 🔒 Privacy
