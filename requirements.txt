@@ -1,4 +1,4 @@
-# CCGauge 运行依赖
+# CCGauge runtime dependencies (pywebview / pystray / pillow / requests)
 pywebview>=5.4
 pystray>=0.19.5
 pillow>=10.4
