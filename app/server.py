@@ -523,7 +523,14 @@ class ApiHandler(BaseHTTPRequestHandler):
         tz = _to_int(_first(query, "tz"), local_tz_offset_sec())
         start = start if start is not None else 0
         end = end if end is not None else int(time.time()) + 1
-        self._send_json({"ok": True, "rows": self.ctx.db.daily_model_breakdown(start, end, tz)})
+        payload = self.ctx.db.daily_model_breakdown(
+            start,
+            end,
+            tz,
+            page=_to_int(_first(query, "page"), 1),
+            page_size=_to_int(_first(query, "page_size"), 50),
+        )
+        self._send_json({"ok": True, **payload})
 
     def _api_records(self, query) -> None:
         start, end = self.ctx.resolve_range(_first(query, "range"))

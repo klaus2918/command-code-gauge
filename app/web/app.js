@@ -191,6 +191,8 @@
     recordPage: 1,
     recordPageSize: 50,
     recordModel: '',
+    dailyPage: 1,
+    dailyPageSize: 50,
     trendMetric: 'cost',
     trendSeries: [],
     trendLabels: [],
@@ -419,7 +421,7 @@
     if (page === 'home') { loadQuota(); loadOverview(state.homeRange); loadTodayChart(); }
     else if (page === 'stats') { loadStats(state.statsRange); }
     else if (page === 'models') { loadOfficial(false); }
-    else if (page === 'records') { loadDailyRecords(); loadRecordPage(1); }
+    else if (page === 'records') { loadDailyRecords(1); loadRecordPage(1); }
     else if (page === 'settings') { loadSettings(); }
   }
 
@@ -826,12 +828,17 @@
   }
 
   // ---------------------------------------------------------------- 记录
-  async function loadDailyRecords() {
-    const data = await get('/api/daily-models', { range: '30d', tz: tzOffsetSec() });
-    const rows = data.rows || [];
+  /** 按日聚合（日期 × 模型）：服务端分页 + 稳定排序，避免聚合行随时间增长后被截断。 */
+  async function loadDailyRecords(page) {
+    const target = Math.max(1, page || 1);
+    const data = await get('/api/daily-models', {
+      range: '30d', tz: tzOffsetSec(), page: target, page_size: state.dailyPageSize,
+    });
+    state.dailyPage = target;
+    const rows = data.items || [];
     const tbody = $('dailyTable').querySelector('tbody');
     tbody.innerHTML = rows.length
-      ? rows.slice(0, 60).map((r) => `<tr>
+      ? rows.map((r) => `<tr>
           <td>${r.day}</td>
           <td>${escapeHtml(r.model)}</td>
           <td class="num">${fmtInt(r.requests)}</td>
@@ -841,6 +848,12 @@
           <td class="num">${fmtDuration(r.avg_duration_ms)}</td>
         </tr>`).join('')
       : `<tr><td colspan="7" class="empty">${t('empty.records')}</td></tr>`;
+    const totalPages = Math.max(1, Math.ceil((data.total || 0) / state.dailyPageSize));
+    $('dailyPageInfo').textContent = data.total
+      ? t('page.info', { p: target, t: totalPages, n: fmtInt(data.total) })
+      : t('page.none');
+    $('dailyPrevPage').disabled = target <= 1;
+    $('dailyNextPage').disabled = target >= totalPages;
   }
 
   async function loadRecordPage(page) {
@@ -1193,7 +1206,9 @@
 
     $('prevPage').addEventListener('click', () => loadRecordPage(Math.max(1, state.recordPage - 1)));
     $('nextPage').addEventListener('click', () => loadRecordPage(state.recordPage + 1));
-    $('recordsRefresh').addEventListener('click', () => { loadDailyRecords(); loadRecordPage(state.recordPage); });
+    $('dailyPrevPage').addEventListener('click', () => loadDailyRecords(Math.max(1, state.dailyPage - 1)));
+    $('dailyNextPage').addEventListener('click', () => loadDailyRecords(state.dailyPage + 1));
+    $('recordsRefresh').addEventListener('click', () => { loadDailyRecords(state.dailyPage); loadRecordPage(state.recordPage); });
     $('recordModelFilter').addEventListener('change', (e) => { state.recordModel = e.target.value; loadRecordPage(1); });
 
     // 模型页：官方数据刷新 / 本地筛选与排序（仅重绘，不重新请求）

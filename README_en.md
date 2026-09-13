@@ -12,7 +12,7 @@
 - **Usage overview**: requests / total tokens (in+out) / cost / cache cost ratio / average duration / model count, with six ranges — today, 24h, 7d, 30d, billing period, all
 - **Today trend**: 24-hour input/output bar chart
 - **Usage statistics**: token breakdown, cost breakdown (input / output / cache), model doughnut chart and ranking, trend chart with metric switcher (cost / requests / tokens) and range totals
-- **Daily aggregation**: per-day × model requests / tokens / cost / average duration
+- **Daily aggregation**: per-day × model requests / tokens / cost / average duration, paged (stays complete as rows accumulate over time)
 - **Request records**: paginated request-level details with model filter
 - **Model value (official plan data)**: a new “Models” page fetches the official docs for **per-model monthly allowance**, **5-hour / weekly / monthly request estimates** and per-million-token rates, side by side with your local measurements (requests, average cost per request, allowance used, affordable requests) — sorted by affordable requests to compare models at a glance
 - **Built-in WebView login**: a dedicated login window opens the official sign-in page and captures the session credentials automatically — no manual cookie copying

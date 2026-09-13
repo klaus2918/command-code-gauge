@@ -12,6 +12,11 @@ from app.db import Database
 LOCAL_TZ = 8 * 3600
 
 
+def local_day(ts):
+    """按 LOCAL_TZ 折算的本地日期（与聚合 SQL 的 tz 偏移口径一致）。"""
+    return time.strftime("%Y-%m-%d", time.gmtime(ts + LOCAL_TZ))
+
+
 def make_record(record_id, ts_offset_sec=0, model="m1", mode="agent", tokens_in=100, tokens_out=10,
                 cost_input=0.01, cost_output=0.02, cost_cache=0.03, duration_ms=1000):
     ts = datetime.fromtimestamp(time.time() + ts_offset_sec, tz=timezone.utc)
@@ -120,10 +125,39 @@ class TestBreakdowns:
 
     def test_daily_model_breakdown(self, db):
         db.upsert_records([make_record("a", model="m1"), make_record("b", model="m1")])
-        rows = db.daily_model_breakdown(int(time.time()) - 86400, int(time.time()) + 3600, LOCAL_TZ)
+        result = db.daily_model_breakdown(int(time.time()) - 86400, int(time.time()) + 3600, LOCAL_TZ)
+        rows = result["items"]
+        assert result["total"] == 1
         assert len(rows) == 1
         assert rows[0]["requests"] == 2
         assert rows[0]["model"] == "m1"
+
+    def test_daily_model_breakdown_paginates(self, db):
+        """聚合行数随时间增长，故分页；排序稳定（日期倒序 → 成本倒序 → 模型名）不重不漏。"""
+        now = int(time.time())
+        db.upsert_records([
+            make_record("today-m1", ts_offset_sec=0, model="m1"),
+            make_record("day1-m1", ts_offset_sec=-86400, model="m1"),
+            make_record("day1-m2", ts_offset_sec=-86400 - 60, model="m2"),
+            make_record("day2-m1", ts_offset_sec=-172800, model="m1"),
+        ])
+        first = db.daily_model_breakdown(now - 3 * 86400, now + 3600, LOCAL_TZ, page=1, page_size=2)
+        assert first["total"] == 4
+        assert first["page"] == 1
+        assert first["page_size"] == 2
+        second = db.daily_model_breakdown(now - 3 * 86400, now + 3600, LOCAL_TZ, page=2, page_size=2)
+        keys = [(r["day"], r["model"]) for r in first["items"] + second["items"]]
+        assert len(keys) == 4 and len(set(keys)) == 4          # 翻页不重复、不漏行
+        assert first["items"][0]["day"] == local_day(now)      # 最新日期在最前
+        beyond = db.daily_model_breakdown(now - 3 * 86400, now + 3600, LOCAL_TZ, page=9, page_size=2)
+        assert beyond["items"] == [] and beyond["total"] == 4
+
+    def test_daily_model_breakdown_params_clamped(self, db):
+        db.upsert_records([make_record("a", model="m1")])
+        result = db.daily_model_breakdown(int(time.time()) - 86400, int(time.time()) + 3600,
+                                          LOCAL_TZ, page=0, page_size=9999)
+        assert result["page"] == 1
+        assert result["page_size"] == 200
 
 
 class TestRecords:

@@ -384,11 +384,30 @@ class Database:
         ]
 
     def daily_model_breakdown(
-        self, start_ts: int, end_ts: int, tz_offset_sec: int = 0
-    ) -> list[dict]:
-        """按「日期 × 模型」聚合（会话历史降级视图，见 plan 附录 C4）。"""
+        self,
+        start_ts: int,
+        end_ts: int,
+        tz_offset_sec: int = 0,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> dict:
+        """按「日期 × 模型」聚合分页查询（会话历史降级视图，见 plan 附录 C4）。
+
+        聚合行随时间持续增长，故与请求明细一致改为服务端分页：先统计分组总数，
+        再按稳定排序（日期倒序 → 成本倒序 → 模型名）取一页，避免翻页出现重复或漏行。
+        """
         where, params = self._range_where(start_ts, end_ts)
+        page = max(1, int(page))
+        page_size = max(1, min(int(page_size), 200))
+        offset = (page - 1) * page_size
         with self._lock:
+            total = self._conn.execute(
+                f"""SELECT COUNT(*) AS c FROM (
+                        SELECT strftime('%Y-%m-%d', created_ts + ?, 'unixepoch') AS day, model
+                        FROM usage_records {where}
+                        GROUP BY day, model)""",
+                [int(tz_offset_sec), *params],
+            ).fetchone()["c"]
             rows = self._conn.execute(
                 f"""SELECT strftime('%Y-%m-%d', created_ts + ?, 'unixepoch') AS day,
                            model,
@@ -398,22 +417,29 @@ class Database:
                            COALESCE(SUM(cost_total), 0)   AS cost_total,
                            COALESCE(AVG(duration_ms), 0)  AS avg_duration_ms
                     FROM usage_records {where}
-                    GROUP BY day, model ORDER BY day DESC, cost_total DESC""",
-                [int(tz_offset_sec), *params],
+                    GROUP BY day, model
+                    ORDER BY day DESC, cost_total DESC, model ASC
+                    LIMIT ? OFFSET ?""",
+                [int(tz_offset_sec), *params, page_size, offset],
             ).fetchall()
-        return [
-            {
-                "day": r["day"],
-                "model": r["model"] or "(unknown)",
-                "requests": int(r["requests"]),
-                "tokens_in": int(r["tokens_in"]),
-                "tokens_out": int(r["tokens_out"]),
-                "total_tokens": int(r["tokens_in"]) + int(r["tokens_out"]),
-                "cost_total": float(r["cost_total"]),
-                "avg_duration_ms": float(r["avg_duration_ms"]),
-            }
-            for r in rows
-        ]
+        return {
+            "total": int(total),
+            "page": page,
+            "page_size": page_size,
+            "items": [
+                {
+                    "day": r["day"],
+                    "model": r["model"] or "(unknown)",
+                    "requests": int(r["requests"]),
+                    "tokens_in": int(r["tokens_in"]),
+                    "tokens_out": int(r["tokens_out"]),
+                    "total_tokens": int(r["tokens_in"]) + int(r["tokens_out"]),
+                    "cost_total": float(r["cost_total"]),
+                    "avg_duration_ms": float(r["avg_duration_ms"]),
+                }
+                for r in rows
+            ],
+        }
 
     def list_models(self) -> list[str]:
         """已入库的模型清单（用于筛选下拉）。"""

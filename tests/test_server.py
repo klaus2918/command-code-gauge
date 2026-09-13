@@ -19,13 +19,13 @@ from app.server import (
 from app.db import Database
 
 
-def make_record(record_id, ts_offset_sec=0):
+def make_record(record_id, ts_offset_sec=0, model="m"):
     ts = datetime.fromtimestamp(time.time() + ts_offset_sec, tz=timezone.utc)
     return UsageRecord(
         id=record_id,
         created_at=ts.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
         tokens_in=10, tokens_out=1, duration_ms=100,
-        status="completed", mode="agent", type="api", model="m",
+        status="completed", mode="agent", type="api", model=model,
         cost_total=0.001, cost_input=0.0005, cost_output=0.0004, cost_cache=0.0001,
         trace_id="t", created_ts=ts, raw={},
     )
@@ -354,3 +354,47 @@ class TestNumberUnitSetting:
         res = self._request(api, "POST", "/api/settings", {"bogus_key": "x"})
         assert res["updated"] == []
         assert ctx.db.get_setting("bogus_key") is None
+
+
+class TestDailyModelsPagination:
+    """按日聚合接口：服务端分页（聚合行随时间增长，不再一次性返回全量）。"""
+
+    @pytest.fixture()
+    def api(self, ctx):
+        server = Server(ctx)
+        yield server
+        server.stop()
+
+    @staticmethod
+    def _get(server, path):
+        with urllib.request.urlopen(server.base_url.rstrip("/") + path, timeout=5) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def test_defaults_to_first_page(self, api, ctx):
+        ctx.db.upsert_records([make_record("a")])
+        data = self._get(api, "/api/daily-models?range=all&tz=0")
+        assert data["ok"] is True
+        assert data["page"] == 1
+        assert data["page_size"] == 50
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
+
+    def test_pages_do_not_overlap_or_drop_rows(self, api, ctx):
+        ctx.db.upsert_records([
+            make_record("a", 0, model="m1"),
+            make_record("b", -86400, model="m1"),
+            make_record("c", -86460, model="m2"),
+            make_record("d", -172800, model="m1"),
+        ])
+        seen = []
+        for page in (1, 2):
+            data = self._get(api, f"/api/daily-models?range=all&tz=0&page={page}&page_size=2")
+            assert data["total"] == 4
+            seen += [(r["day"], r["model"]) for r in data["items"]]
+        assert len(seen) == 4 and len(set(seen)) == 4
+
+    def test_page_beyond_end_is_empty(self, api, ctx):
+        ctx.db.upsert_records([make_record("a")])
+        data = self._get(api, "/api/daily-models?range=all&tz=0&page=5&page_size=10")
+        assert data["items"] == []
+        assert data["total"] == 1
