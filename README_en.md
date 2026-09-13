@@ -35,6 +35,8 @@ Download `CCGauge.exe` from Releases (single file, no install):
 ### Run from source
 
 ```bash
+git clone https://github.com/klaus2918/command-code-gauge.git
+cd command-code-gauge
 pip install -r requirements.txt
 python entry.py
 ```
@@ -75,10 +77,11 @@ Python · pywebview (WebView2) · SQLite · Chart.js · pystray · PyInstaller
 
 ## 📄 License
 
-MIT © CCGauge
+[MIT](./LICENSE) © CCGauge
 
 ---
 
 ## Credits
 
-UI and interaction inspired by [opencode-go-gauge](https://github.com/yphyphyph/opencode-go-gauge) (OpenCode Go usage panel); data source and implementation are built specifically for Command Code.
+- UI and interaction inspired by [opencode-go-gauge](https://github.com/yphyphyph/opencode-go-gauge) (OpenCode Go usage panel, MIT licensed, Copyright (c) 2026 GoGauge (yphyphyph)); the data source and implementation here are built specifically for Command Code.
+- Charting by [Chart.js](https://www.chartjs.org/) (MIT licensed, bundled as `app/web/chart.umd.min.js`).

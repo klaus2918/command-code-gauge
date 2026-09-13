@@ -36,6 +36,8 @@
 ### 源码运行
 
 ```bash
+git clone https://github.com/klaus2918/command-code-gauge.git
+cd command-code-gauge
 pip install -r requirements.txt
 python entry.py
 ```
@@ -103,10 +105,11 @@ build.bat                PyInstaller 打包脚本
 
 ## 📄 License
 
-MIT © CCGauge
+[MIT](./LICENSE) © CCGauge
 
 ---
 
-## 参考
+## 参考与致谢
 
-界面与交互参考 [opencode-go-gauge](https://github.com/yphyphyph/opencode-go-gauge)（OpenCode Go 用量面板），数据源与实现完全针对 Command Code 构建。
+- 界面与交互参考 [opencode-go-gauge](https://github.com/yphyphyph/opencode-go-gauge)（OpenCode Go 用量面板，MIT 许可，Copyright (c) 2026 GoGauge (yphyphyph)）；本项目数据源与实现完全针对 Command Code 构建。
+- 图表库 [Chart.js](https://www.chartjs.org/)（MIT 许可，见 `app/web/chart.umd.min.js`）。
