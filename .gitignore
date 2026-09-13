@@ -13,6 +13,30 @@ dist/
 # 运行数据（数据库与日志）
 data/
 
-# 编辑器
+# op 工作流记录（含调研与发布材料，仅留本地）
+.op/
+
+# 测试缓存
+.pytest_cache/
+
+# 环境与凭据（兜底）
+.env
+.env.*
+*.pem
+*.key
+
+# 日志与数据库（兜底）
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# 编辑器与系统（兜底）
 .idea/
 .vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
