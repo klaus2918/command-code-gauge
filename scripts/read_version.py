@@ -3,7 +3,7 @@
 
 用法::
 
-    py scripts/read_version.py     # → 1.1.2
+    py scripts/read_version.py     # → 1.1.3
 
 供 ``build.bat`` 读取后注入 Inno Setup：``iscc /DMyAppVersion=<ver> CCGauge.iss``。
 单独运行也会在找不到定义时以非 0 退出，避免构建脚本拿到空版本号继续跑。

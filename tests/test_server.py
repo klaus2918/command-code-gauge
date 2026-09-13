@@ -398,3 +398,16 @@ class TestDailyModelsPagination:
         data = self._get(api, "/api/daily-models?range=all&tz=0&page=5&page_size=10")
         assert data["items"] == []
         assert data["total"] == 1
+
+    def test_range_all_covers_full_history(self, api, ctx):
+        """按日聚合默认视图取 range=all：30 天窗口之外的旧记录也能翻到。"""
+        ctx.db.upsert_records([
+            make_record("old", -60 * 86400, model="m-old"),
+            make_record("new", 0, model="m-new"),
+        ])
+        full = self._get(api, "/api/daily-models?range=all&tz=0&page=1&page_size=50")
+        assert full["total"] == 2
+        assert {item["model"] for item in full["items"]} == {"m-old", "m-new"}
+        windowed = self._get(api, "/api/daily-models?range=30d&tz=0&page=1&page_size=50")
+        assert windowed["total"] == 1
+        assert windowed["items"][0]["model"] == "m-new"

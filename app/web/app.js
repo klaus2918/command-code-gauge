@@ -828,11 +828,11 @@
   }
 
   // ---------------------------------------------------------------- 记录
-  /** 按日聚合（日期 × 模型）：服务端分页 + 稳定排序，避免聚合行随时间增长后被截断。 */
+  /** 按日聚合（日期 × 模型）：服务端分页 + 稳定排序，覆盖全部历史（与「请求明细」同口径）。 */
   async function loadDailyRecords(page) {
     const target = Math.max(1, page || 1);
     const data = await get('/api/daily-models', {
-      range: '30d', tz: tzOffsetSec(), page: target, page_size: state.dailyPageSize,
+      range: 'all', tz: tzOffsetSec(), page: target, page_size: state.dailyPageSize,
     });
     state.dailyPage = target;
     const rows = data.items || [];
