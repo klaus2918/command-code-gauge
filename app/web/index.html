@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CCGauge - Command Code 用量面板</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◈</span>
+      <span class="brand-name">CCGauge</span>
+      <span class="plan-badge" id="planBadge" hidden></span>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="nav-item active" data-page="home" data-i18n="nav.home">首页</button>
+      <button class="nav-item" data-page="stats" data-i18n="nav.stats">用量统计</button>
+      <button class="nav-item" data-page="records" data-i18n="nav.records">使用记录</button>
+      <button class="nav-item" data-page="settings" data-i18n="nav.settings">设置</button>
+      <button class="nav-item" data-page="about" data-i18n="nav.about">关于</button>
+    </nav>
+    <div class="topbar-actions">
+      <span class="status-dot" id="statusDot" title=""></span>
+      <button class="btn ghost" id="syncBtn" data-i18n="action.sync">同步</button>
+      <button class="btn ghost icon" id="themeBtn" title="主题">◐</button>
+      <button class="btn ghost icon" id="langBtn" title="语言">EN</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- 未登录欢迎 -->
+    <section class="page" id="page-welcome">
+      <div class="welcome-card">
+        <h1 data-i18n="welcome.title">欢迎使用 CCGauge</h1>
+        <p class="muted" data-i18n="welcome.desc">
+          本地优先的 Command Code 用量面板：配额窗口、Token 构成、模型排行与使用记录，打开即见。
+        </p>
+        <div class="welcome-actions">
+          <button class="btn primary" id="welcomeLoginBtn" data-i18n="welcome.login">立即登录</button>
+          <button class="btn ghost" id="welcomeQuitBtn" data-i18n="welcome.quit">退出</button>
+        </div>
+        <p class="muted small" data-i18n="welcome.hint">
+          登录窗口会打开 commandcode.ai 官方登录页，完成后自动捕获会话凭据（仅保存在本机）。
+        </p>
+      </div>
+    </section>
+
+    <!-- 首页 -->
+    <section class="page hidden" id="page-home">
+      <div class="section-head">
+        <h2 data-i18n="home.quota">配额窗口</h2>
+        <span class="muted small" id="quotaCapturedAt"></span>
+      </div>
+      <div class="grid grid-3" id="quotaCards">
+        <div class="card quota-card" id="cardFiveHour">
+          <div class="card-title" data-i18n="quota.fiveHour">5 小时窗口</div>
+          <div class="quota-value"><span class="big" id="fiveHourUsed">--</span><span class="muted" id="fiveHourCap"></span></div>
+          <div class="progress"><div class="progress-fill" id="fiveHourBar"></div></div>
+          <div class="muted small" id="fiveHourReset"></div>
+        </div>
+        <div class="card quota-card" id="cardWeekly">
+          <div class="card-title" data-i18n="quota.weekly">每周窗口</div>
+          <div class="quota-value"><span class="big" id="weeklyUsed">--</span><span class="muted" id="weeklyCap"></span></div>
+          <div class="progress"><div class="progress-fill" id="weeklyBar"></div></div>
+          <div class="muted small" id="weeklyReset"></div>
+        </div>
+        <div class="card quota-card" id="cardCredits">
+          <div class="card-title" data-i18n="quota.credits">月度信用</div>
+          <div class="quota-value"><span class="big" id="creditRemaining">--</span></div>
+          <div class="progress"><div class="progress-fill" id="creditBar"></div></div>
+          <div class="muted small" id="creditMeta"></div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2 data-i18n="home.overview">用量概览</h2>
+        <div class="range-tabs" id="homeRange">
+          <button class="tab active" data-range="today" data-i18n="range.today">今天</button>
+          <button class="tab" data-range="24h" data-i18n="range.24h">24 小时</button>
+          <button class="tab" data-range="7d" data-i18n="range.7d">7 天</button>
+          <button class="tab" data-range="30d" data-i18n="range.30d">30 天</button>
+          <button class="tab" data-range="billing" data-i18n="range.billing">计费周期</button>
+          <button class="tab" data-range="all" data-i18n="range.all">全部</button>
+        </div>
+      </div>
+      <div class="grid grid-3" id="overviewCards">
+        <div class="card metric"><div class="metric-label" data-i18n="metric.requests">请求数</div><div class="metric-value" id="ovRequests">--</div></div>
+        <div class="card metric"><div class="metric-label" data-i18n="metric.totalTokens">总 Token</div><div class="metric-value" id="ovTokens">--</div><div class="metric-sub muted" id="ovTokensSub"></div></div>
+        <div class="card metric"><div class="metric-label" data-i18n="metric.cost">费用</div><div class="metric-value" id="ovCost">--</div><div class="metric-sub muted" id="ovCostSub"></div></div>
+        <div class="card metric"><div class="metric-label" data-i18n="metric.cacheRatio">缓存成本占比</div><div class="metric-value" id="ovCache">--</div><div class="metric-sub muted" id="ovCacheSub"></div></div>
+        <div class="card metric"><div class="metric-label" data-i18n="metric.avgDuration">平均耗时</div><div class="metric-value" id="ovDuration">--</div></div>
+        <div class="card metric"><div class="metric-label" data-i18n="metric.models">模型数</div><div class="metric-value" id="ovModels">--</div></div>
+      </div>
+
+      <div class="section-head">
+        <h2 data-i18n="home.todayTrend">今日趋势（24 小时）</h2>
+      </div>
+      <div class="card chart-card">
+        <div class="chart-box" style="height: 240px">
+          <canvas id="chartToday"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- 用量统计 -->
+    <section class="page hidden" id="page-stats">
+      <div class="section-head">
+        <h2 data-i18n="stats.title">用量统计</h2>
+        <div class="range-tabs" id="statsRange">
+          <button class="tab" data-range="24h" data-i18n="range.24h">24 小时</button>
+          <button class="tab active" data-range="7d" data-i18n="range.7d">7 天</button>
+          <button class="tab" data-range="30d" data-i18n="range.30d">30 天</button>
+          <button class="tab" data-range="billing" data-i18n="range.billing">计费周期</button>
+          <button class="tab" data-range="all" data-i18n="range.all">全部</button>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title" data-i18n="stats.tokenBreakdown">Token 构成</div>
+          <div class="stack-bar" id="tokenStack">
+            <div class="stack-seg seg-in" id="segIn"></div>
+            <div class="stack-seg seg-out" id="segOut"></div>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><i class="dot dot-in"></i><span data-i18n="token.in">输入</span> <b id="tokenInVal">--</b></span>
+            <span class="legend-item"><i class="dot dot-out"></i><span data-i18n="token.out">输出</span> <b id="tokenOutVal">--</b></span>
+          </div>
+          <div class="divider"></div>
+          <div class="cost-rows" id="costRows"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="stats.modelShare">模型用量占比</div>
+          <div class="chart-box" style="height: 250px">
+            <canvas id="chartModels"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" data-i18n="stats.modelRank">模型排行</div>
+        <table class="table" id="modelTable">
+          <thead>
+            <tr>
+              <th data-i18n="table.model">模型</th>
+              <th class="num" data-i18n="table.requests">请求数</th>
+              <th class="num" data-i18n="table.tokensIn">输入</th>
+              <th class="num" data-i18n="table.tokensOut">输出</th>
+              <th class="num" data-i18n="table.totalTokens">总 Token</th>
+              <th class="num" data-i18n="table.cost">费用</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-head">
+          <div class="card-title" data-i18n="stats.trend">趋势</div>
+          <span class="muted small" id="trendSummary"></span>
+          <div class="range-tabs" id="trendMetric">
+            <button class="tab active" data-metric="cost" data-i18n="stats.trendCost">费用</button>
+            <button class="tab" data-metric="requests" data-i18n="stats.trendRequests">请求数</button>
+            <button class="tab" data-metric="tokens" data-i18n="stats.trendTokens">Token</button>
+          </div>
+        </div>
+        <div class="chart-box" style="height: 280px">
+          <canvas id="chartTrend"></canvas>
+        </div>
+        <div class="muted small" id="trendHint" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <!-- 使用记录 -->
+    <section class="page hidden" id="page-records">
+      <div class="section-head">
+        <h2 data-i18n="records.dailyTitle">按日聚合</h2>
+      </div>
+      <div class="card">
+        <table class="table" id="dailyTable">
+          <thead>
+            <tr>
+              <th data-i18n="table.day">日期</th>
+              <th data-i18n="table.model">模型</th>
+              <th class="num" data-i18n="table.requests">请求数</th>
+              <th class="num" data-i18n="table.tokensIn">输入</th>
+              <th class="num" data-i18n="table.tokensOut">输出</th>
+              <th class="num" data-i18n="table.cost">费用</th>
+              <th class="num" data-i18n="table.avgDuration">平均耗时</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="section-head">
+        <h2 data-i18n="records.detailTitle">请求明细</h2>
+        <div class="filters">
+          <select id="recordModelFilter"></select>
+          <button class="btn ghost" id="recordsRefresh" data-i18n="action.refresh">刷新</button>
+        </div>
+      </div>
+      <div class="card">
+        <table class="table" id="recordTable">
+          <thead>
+            <tr>
+              <th data-i18n="table.time">时间</th>
+              <th data-i18n="table.model">模型</th>
+              <th data-i18n="table.mode">类型</th>
+              <th class="num" data-i18n="table.tokensIn">输入</th>
+              <th class="num" data-i18n="table.tokensOut">输出</th>
+              <th class="num" data-i18n="table.totalTokens">总 Token</th>
+              <th class="num" data-i18n="table.duration">耗时</th>
+              <th class="num" data-i18n="table.cost">费用</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="pager">
+          <button class="btn ghost" id="prevPage" data-i18n="action.prev">上一页</button>
+          <span class="muted" id="pageInfo">--</span>
+          <button class="btn ghost" id="nextPage" data-i18n="action.next">下一页</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="page hidden" id="page-settings">
+      <div class="section-head"><h2 data-i18n="settings.title">设置</h2></div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title" data-i18n="settings.sync">同步</div>
+          <label class="field">
+            <span data-i18n="settings.interval">自动同步间隔</span>
+            <select id="setInterval">
+              <option value="1">1 min</option>
+              <option value="5">5 min</option>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </label>
+          <label class="field">
+            <span data-i18n="settings.range">同步范围</span>
+            <select id="setRange">
+              <option value="30">30 天</option>
+              <option value="60">60 天</option>
+              <option value="90">90 天</option>
+              <option value="180">180 天</option>
+              <option value="0">全部</option>
+            </select>
+          </label>
+          <div class="field-row">
+            <button class="btn primary" id="btnSyncIncremental" data-i18n="settings.syncNow">立即同步</button>
+            <button class="btn ghost" id="btnSyncFull" data-i18n="settings.syncFull">回填历史</button>
+          </div>
+          <div class="muted small" id="syncHint" data-i18n="settings.syncHint"></div>
+          <div class="muted small" id="syncStatus" style="margin-top:6px"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="settings.account">账户</div>
+          <div class="field-row"><span class="muted" data-i18n="settings.user">用户</span><b id="setUserName">--</b></div>
+          <div class="field-row"><span class="muted" data-i18n="settings.plan">计划</span><b id="setPlan">--</b></div>
+          <div class="field-row"><span class="muted" data-i18n="settings.credential">登录态</span><b id="setCredential">--</b></div>
+          <div class="field-row">
+            <button class="btn ghost" id="btnRelogin" data-i18n="settings.relogin">重新登录</button>
+            <button class="btn danger" id="btnLogout" data-i18n="settings.logout">退出登录</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" data-i18n="settings.appearance">外观</div>
+        <div class="field-row">
+          <span class="muted" data-i18n="settings.theme">主题</span>
+          <div class="seg" id="themeSeg">
+            <button data-theme-value="light" data-i18n="settings.light">亮色</button>
+            <button data-theme-value="dark" data-i18n="settings.dark">深色</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="muted" data-i18n="settings.lang">语言</span>
+          <div class="seg" id="langSeg">
+            <button data-lang-value="zh">中文</button>
+            <button data-lang-value="en">English</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 关于 -->
+    <section class="page hidden" id="page-about">
+      <div class="section-head"><h2 data-i18n="about.title">关于</h2></div>
+      <div class="card about-card">
+        <div class="about-logo">◈</div>
+        <div class="about-name">CCGauge</div>
+        <div class="muted" id="aboutVersion">v--</div>
+        <p class="muted small" data-i18n="about.desc">
+          Command Code 用量面板：配额窗口、Token 构成、模型排行、会话记录与自动同步。数据默认保存在本机
+          SQLite；登录凭据仅保存在本机，不会上传到任何第三方。
+        </p>
+        <div class="about-meta">
+          <div><span class="muted" data-i18n="about.source">数据来源</span> api.commandcode.ai</div>
+          <div><span class="muted" data-i18n="about.storage">数据存储</span> data/ccgauge.db</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
