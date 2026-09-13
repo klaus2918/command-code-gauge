@@ -6,7 +6,7 @@
   const I18N = {
     zh: {
       'nav.home': '首页', 'nav.stats': '用量统计', 'nav.records': '使用记录',
-      'nav.settings': '设置', 'nav.about': '关于',
+      'nav.settings': '设置', 'nav.about': '关于', 'nav.models': '模型',
       'action.sync': '同步', 'action.refresh': '刷新', 'action.prev': '上一页', 'action.next': '下一页',
       'welcome.title': '欢迎使用 CCGauge',
       'welcome.desc': '本地优先的 Command Code 用量面板：配额窗口、Token 构成、模型排行与使用记录，打开即见。',
@@ -56,6 +56,37 @@
       'sync.never': '尚未同步', 'sync.last': '上次同步 {t}', 'sync.failed': '同步失败：{e}',
       'sync.records': '{n} 条记录', 'sync.span': '数据范围 {a} ~ {b}',
       'plan.monthly': '月额度 ${c}',
+      'models.title': '模型与套餐额度', 'models.refresh': '刷新官方数据',
+      'models.plan': '当前套餐', 'models.monthlyCredits': '月度额度',
+      'models.allowanceUsed': '本周期额度消耗',
+      'models.table': '模型性价比（官方额度 / 次数 / 单价 × 本地实测）',
+      'models.search': '搜索模型', 'models.onlyUsed': '仅看用过的',
+      'models.allowance': '额度上限', 'models.estimate': '官方次数估算',
+      'models.rate': '单价 /1M', 'models.requests': '请求数',
+      'models.costPerRequest': '平均每请求', 'models.allowanceProgress': '额度已用',
+      'models.value': '额度可跑次数',
+      'models.sortValue': '按额度可跑次数', 'models.sortAllowance': '按额度上限',
+      'models.sortUsed': '按本周期消耗', 'models.sortRequests': '按请求数',
+      'models.sortName': '按名称',
+      'models.fetchedAt': '官方数据 {t}（24 小时缓存）',
+      'models.stale': '官方数据过期（上次抓取 {t}）：{e}',
+      'models.noData': '暂无官方数据，点「刷新官方数据」重试',
+      'models.failed': '抓取失败：{e}',
+      'models.planFallback': '未识别该套餐的官方文档页，仅展示官方单价与窗口',
+      'models.estimates': '5h {f} · 周 {w} · 月 {m}',
+      'models.monthlyEstimate': '月 {m}',
+      'models.rates': '入 {i} · 出 {o} · 缓存 {c}',
+      'models.notUsed': '本周期未使用',
+      'models.estimated': '估算',
+      'models.basisTypical': '可按官方典型请求结构估算',
+      'models.basisMeasured': '按本周期实测',
+      'models.costRatio': '实测 {v}× 官方典型',
+      'models.vsEstimate': '官方月估算 {n}（{r}×）',
+      'models.updated': '官方数据已更新',
+      'models.unmatchedOfficial': '官方侧 {a} 个模型本周期未使用',
+      'models.unmatchedLocal': '本地侧 {b} 个模型未匹配到官方目录（可能是工具调用或下架模型）',
+      'models.cacheNote': '缓存读 token 由「缓存成本 ÷ 官方缓存单价」反推，属估算值。',
+      'models.periodNote': '实测列为当前计费周期内（无周期信息时为全部历史）。',
     },
     en: {
       'nav.home': 'Home', 'nav.stats': 'Statistics', 'nav.records': 'Records',
@@ -109,6 +140,38 @@
       'sync.never': 'Never synced', 'sync.last': 'Last sync {t}', 'sync.failed': 'Sync failed: {e}',
       'sync.records': '{n} records', 'sync.span': 'span {a} ~ {b}',
       'plan.monthly': 'Monthly ${c}',
+      'nav.models': 'Models',
+      'models.title': 'Models & plan allowances', 'models.refresh': 'Refresh official data',
+      'models.plan': 'Current plan', 'models.monthlyCredits': 'Monthly credits',
+      'models.allowanceUsed': 'Credits used this period',
+      'models.table': 'Model value (official allowance / requests / rates × your usage)',
+      'models.search': 'Search models', 'models.onlyUsed': 'Used only',
+      'models.allowance': 'Allowance', 'models.estimate': 'Official requests',
+      'models.rate': 'Rate /1M', 'models.requests': 'Requests',
+      'models.costPerRequest': 'Avg / request', 'models.allowanceProgress': 'Allowance used',
+      'models.value': 'Requests per allowance',
+      'models.sortValue': 'By requests per allowance', 'models.sortAllowance': 'By allowance',
+      'models.sortUsed': 'By credits used', 'models.sortRequests': 'By requests',
+      'models.sortName': 'By name',
+      'models.fetchedAt': 'Official data {t} (24h cache)',
+      'models.stale': 'Official data is stale (fetched {t}): {e}',
+      'models.noData': 'No official data yet — click "Refresh official data" to retry',
+      'models.failed': 'Fetch failed: {e}',
+      'models.planFallback': 'Plan page not recognised — showing official rates and windows only',
+      'models.estimates': '5h {f} · wk {w} · mo {m}',
+      'models.monthlyEstimate': 'mo {m}',
+      'models.rates': 'in {i} · out {o} · cache {c}',
+      'models.notUsed': 'Not used this period',
+      'models.estimated': 'est.',
+      'models.basisTypical': 'estimated from the official typical request shape',
+      'models.basisMeasured': 'from your usage this period',
+      'models.costRatio': 'measured {v}× official typical',
+      'models.vsEstimate': 'official monthly estimate {n} ({r}×)',
+      'models.updated': 'Official data updated',
+      'models.unmatchedOfficial': '{a} official model(s) unused this period',
+      'models.unmatchedLocal': '{b} local model(s) not found in the official catalog (tool calls or retired models)',
+      'models.cacheNote': 'Cache-read tokens are derived from cache cost ÷ official cache rate — an estimate.',
+      'models.periodNote': 'Measured columns cover the current billing period (all history when unknown).',
     },
   };
 
@@ -138,6 +201,11 @@
     charts: {},
     pollTimer: null,
     quotaRefreshing: false,
+    official: null,          // /api/official-models 最近一次结果
+    officialSort: 'value',   // value | allowance | used | requests | name
+    officialQuery: '',
+    officialOnlyUsed: false,
+    officialLoading: false,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -174,6 +242,22 @@
     return compact === full ? full : `${compact}（${full}）`;
   }
 
+  /**
+   * 小额金额格式化：每请求成本常在 $0.0001 量级，人民币两位小数会显示成 0.00，
+   * 故按显示值量级自适应小数位（≥1 → 2 位；≥0.01 → 4 位；更小 → 6 位）。
+   */
+  function fmtCostSmall(value) {
+    const usd = Number(value) || 0;
+    const rate = state.rate > 0 ? state.rate : 0;
+    const mode = rate > 0 ? state.currencyMode : 'usd';
+    const decimals = (v) => (Math.abs(v) >= 1 ? 2 : Math.abs(v) >= 0.01 ? 4 : 6);
+    const usdText = '$' + usd.toFixed(decimals(usd));
+    if (mode === 'usd') return usdText;
+    const cny = usd * rate;
+    const cnyText = '¥' + cny.toFixed(decimals(cny));
+    return mode === 'cny' ? cnyText : `${usdText}（${cnyText}）`;
+  }
+
   /** 金额格式化：按货币模式输出美元 / 人民币 / 双显（汇率未就绪时仅美元）。 */
   function fmtCost(value) {
     const usd = Number(value) || 0;
@@ -203,8 +287,7 @@
     return '$' + usd.toFixed(2);
   }
 
-  function fmtDuration(ms) {
-    const n = Number(ms) || 0;
+  function fmtDuration(ms) {    const n = Number(ms) || 0;
     if (n >= 60000) return (n / 60000).toFixed(1) + ' min';
     if (n >= 1000) return (n / 1000).toFixed(1) + ' s';
     return Math.round(n) + ' ms';
@@ -281,6 +364,9 @@
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       el.textContent = t(el.dataset.i18n);
     });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      el.placeholder = t(el.dataset.i18nPlaceholder);
+    });
     $('langBtn').textContent = lang === 'zh' ? 'EN' : '中';
     document.querySelectorAll('#langSeg button').forEach((b) => {
       b.classList.toggle('active', b.dataset.langValue === lang);
@@ -296,7 +382,9 @@
   }
 
   // ---------------------------------------------------------------- 页面切换
-  const PAGE_KEYS = ['home', 'stats', 'records', 'settings', 'about'];
+  const PAGE_KEYS = ['home', 'stats', 'models', 'records', 'settings', 'about'];
+  // 登录后允许停留的页面（与 PAGE_KEYS 一致，欢迎页单独处理）
+  const CONTENT_PAGES = PAGE_KEYS.filter((p) => p !== 'home');
 
   function switchPage(page) {
     state.page = page;
@@ -313,7 +401,7 @@
     } catch (_) { /* 非浏览器环境忽略 */ }
     document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.page === page));
     const loggedIn = state.status && state.status.logged_in;
-    ['home', 'stats', 'records', 'settings', 'about'].forEach((p) => {
+    PAGE_KEYS.forEach((p) => {
       $(`page-${p}`).classList.toggle('hidden', p !== page);
     });
     $('page-welcome').classList.toggle('hidden', !(!loggedIn && page === 'home'));
@@ -321,7 +409,7 @@
     if (!loggedIn && page !== 'home') {
       // 未登录时始终回欢迎页
       $('page-welcome').classList.remove('hidden');
-      ['home', 'stats', 'records', 'settings', 'about'].forEach((p) => $(`page-${p}`).classList.add('hidden'));
+      PAGE_KEYS.forEach((p) => $(`page-${p}`).classList.add('hidden'));
       if (page === 'settings') { $(`page-settings`).classList.remove('hidden'); $('page-welcome').classList.add('hidden'); }
     }
     loadPage(page);
@@ -330,6 +418,7 @@
   function loadPage(page) {
     if (page === 'home') { loadQuota(); loadOverview(state.homeRange); loadTodayChart(); }
     else if (page === 'stats') { loadStats(state.statsRange); }
+    else if (page === 'models') { loadOfficial(false); }
     else if (page === 'records') { loadDailyRecords(); loadRecordPage(1); }
     else if (page === 'settings') { loadSettings(); }
   }
@@ -852,6 +941,165 @@
     }
   }
 
+  // ---------------------------------------------------------------- 模型页
+  /** 拉取官方套餐 / 模型信息（force=true 时绕过 24h 缓存）。 */
+  async function loadOfficial(force) {
+    if (state.officialLoading) return;
+    state.officialLoading = true;
+    const btn = $('officialRefreshBtn');
+    if (btn) btn.disabled = true;
+    try {
+      state.official = force ? await post('/api/official/refresh') : await get('/api/official-models');
+      if (force) toast(t('models.updated'));
+    } catch (err) {
+      toast(String(err), false);
+    } finally {
+      state.officialLoading = false;
+      if (btn) btn.disabled = false;
+    }
+    renderOfficial();
+  }
+
+  /** 金额或占位符（null/undefined 视为「无官方数据」）。 */
+  function moneyOr(value, placeholder) {
+    return value === null || value === undefined ? (placeholder || '—') : fmtCost(value);
+  }
+
+  /** 计数或占位符。 */
+  function compactOr(value, placeholder) {
+    return value === null || value === undefined ? (placeholder || '—') : fmtCompact(value);
+  }
+
+  /** 百分比展示：极小值不显示成 0.0%，避免看起来像没有消耗。 */
+  function fmtPct(value) {
+    if (value === null || value === undefined) return '—';
+    const pct = Number(value);
+    if (pct <= 0) return '0%';
+    if (pct < 0.1) return '<0.1%';
+    return pct.toFixed(1) + '%';
+  }
+
+  /** 模型页渲染：套餐卡 + 数据时效 + 模型表。 */
+  function renderOfficial() {
+    const data = state.official;
+    if (!data) return;
+    const plan = data.plan || {};
+    const limits = plan.limits || {};
+    const rows = data.models || [];
+
+    $('officialPlanName').textContent = plan.name || '--';
+    $('officialPlanPrice').textContent = [
+      limits.price ? fmtCost(limits.price) + ' / mo' : '',
+      plan.fallback ? t('models.planFallback') : '',
+    ].filter(Boolean).join(' · ');
+    $('officialPlanCredits').textContent = moneyOr(limits.monthly_credits, '--');
+    const windows = [];
+    if (limits.five_hour !== null && limits.five_hour !== undefined) windows.push('5h ' + fmtCost(limits.five_hour));
+    if (limits.weekly !== null && limits.weekly !== undefined) windows.push(t('quota.weekly') + ' ' + fmtCost(limits.weekly));
+    $('officialPlanWindows').textContent = windows.join(' · ');
+
+    // 本周期已消耗（仅统计能匹配到官方目录的模型）
+    const usedTotal = rows.reduce((sum, row) => sum + (((row.measured || {}).cost_total) || 0), 0);
+    const usedPct = limits.monthly_credits ? Math.min(100, (usedTotal / limits.monthly_credits) * 100) : 0;
+    $('officialUsedTotal').textContent = fmtCost(usedTotal);
+    $('officialUsedBar').style.width = usedPct.toFixed(1) + '%';
+    $('officialUsedBar').className = 'progress-fill' + (usedPct >= 90 ? ' danger' : usedPct >= 70 ? ' warn' : '');
+    $('officialUsedHint').textContent = t('models.periodNote');
+
+    const fetched = data.fetched_at ? fmtTime(data.fetched_at) : '--';
+    $('officialFetchedAt').textContent = data.stale
+      ? t('models.stale', { t: fetched, e: data.error || '' })
+      : t('models.fetchedAt', { t: fetched });
+    $('officialStale').textContent = data.ok ? '' : t('models.noData');
+
+    renderOfficialRows(rows, data);
+  }
+
+  /** 模型表：筛选（搜索 / 仅看用过的）+ 排序（默认按额度可跑次数）。 */
+  function renderOfficialRows(rows, data) {
+    const query = state.officialQuery.trim().toLowerCase();
+    const num = (value) => (value === null || value === undefined ? -1 : Number(value));
+    const sorters = {
+      value: (a, b) => num(b.value) - num(a.value),
+      allowance: (a, b) => num(b.allowance) - num(a.allowance),
+      used: (a, b) => num((b.measured || {}).cost_total) - num((a.measured || {}).cost_total),
+      requests: (a, b) => num((b.measured || {}).requests) - num((a.measured || {}).requests),
+      name: (a, b) => String(a.name).localeCompare(String(b.name)),
+    };
+    const list = rows
+      .filter((row) => {
+        if (state.officialOnlyUsed && !row.used) return false;
+        if (!query) return true;
+        return String(row.name || '').toLowerCase().includes(query);
+      })
+      .sort(sorters[state.officialSort] || sorters.value);
+
+    const tbody = $('officialTable').querySelector('tbody');
+    tbody.innerHTML = list.length
+      ? list.map(officialRowHtml).join('')
+      : `<tr><td colspan="8" class="empty">${t('empty.models')}</td></tr>`;
+
+    const unmatched = data.unmatched || {};
+    const notes = [];
+    if ((unmatched.official_only || []).length) {
+      notes.push(t('models.unmatchedOfficial', { a: unmatched.official_only.length }));
+    }
+    if ((unmatched.local_only || []).length) {
+      notes.push(t('models.unmatchedLocal', { b: unmatched.local_only.length }));
+    }
+    notes.push(t('models.cacheNote'));
+    $('officialNotes').textContent = notes.join(' ');
+  }
+
+  /** 单行渲染：官方列（额度 / 次数 / 单价）+ 实测列（请求 / 每请求 / 额度进度 / 可跑次数）。 */
+  function officialRowHtml(row) {
+    const measured = row.measured || null;
+    const estimates = row.requests || {};
+    const raw = row.rates_raw || {};
+
+    const badges = [];
+    if (row.free) badges.push(`<span class="badge free">${t('models.free')}</span>`);
+    if (row.note) badges.push(`<span class="badge">${escapeHtml(String(row.note).slice(0, 24))}</span>`);
+
+    const estimateSub = (estimates.five_hour || estimates.weekly)
+      ? t('models.estimates', {
+        f: compactOr(estimates.five_hour), w: compactOr(estimates.weekly), m: compactOr(estimates.monthly),
+      })
+      : '';
+    const rateText = [raw.input, raw.output, raw.cache_read].filter(Boolean).join(' · ') || '—';
+    const rateSub = row.context ? 'CTX ' + row.context : '';
+
+    const usedPct = measured && measured.allowance_used_pct !== null && measured.allowance_used_pct !== undefined
+      ? measured.allowance_used_pct : null;
+    const progressCls = usedPct === null ? '' : usedPct >= 90 ? ' danger' : usedPct >= 70 ? ' warn' : '';
+    const progressCell = usedPct === null ? '—'
+      : `<div class="inline-progress"><div class="progress"><div class="progress-fill${progressCls}" `
+        + `style="width:${Math.min(100, usedPct).toFixed(1)}%"></div></div>`
+        + `<span class="muted small">${fmtPct(usedPct)}</span></div>`;
+
+    const ratioText = measured && measured.cost_ratio_vs_typical
+      ? t('models.costRatio', { v: measured.cost_ratio_vs_typical.toFixed(2) }) : '';
+    const perRequestText = row.cost_per_request === null || row.cost_per_request === undefined
+      ? '—' : fmtCostSmall(row.cost_per_request);
+    const perRequestSub = ratioText || (row.used ? '' : t('models.basisTypical'));
+    const valueSub = row.vs_estimate_ratio !== null && row.vs_estimate_ratio !== undefined
+      ? t('models.vsEstimate', {
+        n: compactOr(estimates.monthly), r: row.vs_estimate_ratio.toFixed(2),
+      })
+      : t(row.basis === 'measured' ? 'models.basisMeasured' : 'models.basisTypical');
+
+    return `<tr>
+      <td>${escapeHtml(row.name)}${badges.join('')}${row.used ? '' : `<span class="cell-sub">${t('models.notUsed')}</span>`}</td>
+      <td class="num" title="${row.allowance !== null && row.allowance !== undefined ? '$' + Number(row.allowance).toFixed(2) : ''}">${moneyOr(row.allowance)}</td>
+      <td class="num" title="${escapeHtml(estimateSub)}">${estimates.monthly ? fmtCompact(estimates.monthly) : '—'}</td>
+      <td class="num" title="${escapeHtml(rateSub)}">${escapeHtml(rateText)}</td>
+      <td class="num">${measured ? fmtInt(measured.requests) : '—'}</td>
+      <td class="num">${perRequestText}${perRequestSub ? `<span class="cell-sub">${escapeHtml(perRequestSub)}</span>` : ''}</td>
+      <td class="num">${progressCell}</td>
+      <td class="num">${compactOr(row.value)}<span class="cell-sub">${escapeHtml(valueSub)}</span></td>
+    </tr>`;
+  }
+
   // ---------------------------------------------------------------- 刷新
   async function refreshAll() {
     const status = await loadStatus();
@@ -947,6 +1195,21 @@
     $('nextPage').addEventListener('click', () => loadRecordPage(state.recordPage + 1));
     $('recordsRefresh').addEventListener('click', () => { loadDailyRecords(); loadRecordPage(state.recordPage); });
     $('recordModelFilter').addEventListener('change', (e) => { state.recordModel = e.target.value; loadRecordPage(1); });
+
+    // 模型页：官方数据刷新 / 本地筛选与排序（仅重绘，不重新请求）
+    $('officialRefreshBtn').addEventListener('click', () => loadOfficial(true));
+    $('modelSearch').addEventListener('input', (e) => {
+      state.officialQuery = e.target.value;
+      renderOfficialRows((state.official || {}).models || [], state.official || {});
+    });
+    $('modelOnlyUsed').addEventListener('change', (e) => {
+      state.officialOnlyUsed = e.target.checked;
+      renderOfficialRows((state.official || {}).models || [], state.official || {});
+    });
+    $('modelSort').addEventListener('change', (e) => {
+      state.officialSort = e.target.value;
+      renderOfficialRows((state.official || {}).models || [], state.official || {});
+    });
 
     window.addEventListener('resize', () => {
       Object.values(state.charts).forEach((c) => { try { c.resize(); } catch (_) {} });

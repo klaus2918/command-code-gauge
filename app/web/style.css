@@ -278,3 +278,21 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 48px; }
 
 /* 空态 */
 .empty { text-align: center; color: var(--text-muted); padding: 26px 0; font-size: 13px; }
+
+/* 模型页：官方额度 / 次数 / 单价 × 本地实测 */
+.input {
+  padding: 5px 9px; font-size: 13px; color: var(--text);
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px;
+  min-width: 150px;
+}
+.inline-field { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px;
+  border: 1px dashed var(--border); font-size: 10px; color: var(--text-muted);
+  vertical-align: middle; max-width: 130px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.badge.free { color: var(--success); border-color: var(--success); }
+.cell-sub { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.inline-progress { display: flex; align-items: center; gap: 8px; }
+.inline-progress .progress { flex: 1; min-width: 52px; margin: 0; }

@@ -16,6 +16,7 @@
     <nav class="nav" id="nav">
       <button class="nav-item active" data-page="home" data-i18n="nav.home">首页</button>
       <button class="nav-item" data-page="stats" data-i18n="nav.stats">用量统计</button>
+      <button class="nav-item" data-page="models" data-i18n="nav.models">模型</button>
       <button class="nav-item" data-page="records" data-i18n="nav.records">使用记录</button>
       <button class="nav-item" data-page="settings" data-i18n="nav.settings">设置</button>
       <button class="nav-item" data-page="about" data-i18n="nav.about">关于</button>
@@ -223,6 +224,73 @@
           <span class="muted" id="pageInfo">--</span>
           <button class="btn ghost" id="nextPage" data-i18n="action.next">下一页</button>
         </div>
+      </div>
+    </section>
+
+    <!-- 模型（官方套餐额度 / 次数 / 单价 × 本地实测性价比） -->
+    <section class="page hidden" id="page-models">
+      <div class="section-head">
+        <h2 data-i18n="models.title">模型与套餐额度</h2>
+        <div class="filters">
+          <span class="muted small" id="officialFetchedAt"></span>
+          <button class="btn ghost" id="officialRefreshBtn" data-i18n="models.refresh">刷新官方数据</button>
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card metric">
+          <div class="metric-label" data-i18n="models.plan">当前套餐</div>
+          <div class="metric-value" id="officialPlanName">--</div>
+          <div class="metric-sub muted" id="officialPlanPrice"></div>
+        </div>
+        <div class="card metric">
+          <div class="metric-label" data-i18n="models.monthlyCredits">月度额度</div>
+          <div class="metric-value" id="officialPlanCredits">--</div>
+          <div class="metric-sub muted" id="officialPlanWindows"></div>
+        </div>
+        <div class="card metric">
+          <div class="metric-label" data-i18n="models.allowanceUsed">本周期额度消耗</div>
+          <div class="metric-value" id="officialUsedTotal">--</div>
+          <div class="progress"><div class="progress-fill" id="officialUsedBar"></div></div>
+          <div class="metric-sub muted" id="officialUsedHint"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chart-head">
+          <div class="card-title" data-i18n="models.table">模型性价比（官方额度 / 次数 / 单价 × 本地实测）</div>
+          <div class="filters">
+            <input class="input" id="modelSearch" type="text" data-i18n-placeholder="models.search" placeholder="搜索模型">
+            <label class="muted small inline-field">
+              <input type="checkbox" id="modelOnlyUsed">
+              <span data-i18n="models.onlyUsed">仅看用过的</span>
+            </label>
+            <select id="modelSort">
+              <option value="value" data-i18n="models.sortValue">按额度可跑次数</option>
+              <option value="allowance" data-i18n="models.sortAllowance">按额度上限</option>
+              <option value="used" data-i18n="models.sortUsed">按本周期消耗</option>
+              <option value="requests" data-i18n="models.sortRequests">按请求数</option>
+              <option value="name" data-i18n="models.sortName">按名称</option>
+            </select>
+          </div>
+        </div>
+        <div class="muted small" id="officialStale"></div>
+        <table class="table" id="officialTable">
+          <thead>
+            <tr>
+              <th data-i18n="table.model">模型</th>
+              <th class="num" data-i18n="models.allowance">额度上限</th>
+              <th class="num" data-i18n="models.estimate">官方次数估算</th>
+              <th class="num" data-i18n="models.rate">单价 /1M</th>
+              <th class="num" data-i18n="models.requests">请求数</th>
+              <th class="num" data-i18n="models.costPerRequest">平均每请求</th>
+              <th class="num" data-i18n="models.allowanceProgress">额度已用</th>
+              <th class="num" data-i18n="models.value">额度可跑次数</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="muted small" id="officialNotes" style="margin-top:10px"></div>
       </div>
     </section>
 

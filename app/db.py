@@ -54,6 +54,12 @@ CREATE TABLE IF NOT EXISTS sync_state (
     value TEXT
 );
 
+CREATE TABLE IF NOT EXISTS official_snapshots (
+    key          TEXT PRIMARY KEY,
+    payload_json TEXT NOT NULL,
+    fetched_at   INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT
@@ -417,6 +423,40 @@ class Database:
             ).fetchall()
         return [r["model"] for r in rows]
 
+    def model_usage_detail(self, start_ts: Optional[int], end_ts: Optional[int]) -> list[dict]:
+        """按模型聚合明细（含缓存成本），供官方模型性价比视图与本地用量对齐。"""
+        where, params = self._range_where(start_ts, end_ts)
+        with self._lock:
+            rows = self._conn.execute(
+                f"""SELECT model,
+                           COUNT(*)                          AS requests,
+                           COALESCE(SUM(tokens_in), 0)       AS tokens_in,
+                           COALESCE(SUM(tokens_out), 0)      AS tokens_out,
+                           COALESCE(SUM(cost_total), 0)      AS cost_total,
+                           COALESCE(SUM(cost_input), 0)      AS cost_input,
+                           COALESCE(SUM(cost_output), 0)     AS cost_output,
+                           COALESCE(SUM(cost_cache), 0)      AS cost_cache,
+                           COALESCE(AVG(duration_ms), 0)     AS avg_duration_ms
+                    FROM usage_records {where}
+                    GROUP BY model ORDER BY cost_total DESC""",
+                params,
+            ).fetchall()
+        return [
+            {
+                "model": r["model"] or "",
+                "requests": int(r["requests"]),
+                "tokens_in": int(r["tokens_in"]),
+                "tokens_out": int(r["tokens_out"]),
+                "total_tokens": int(r["tokens_in"]) + int(r["tokens_out"]),
+                "cost_total": float(r["cost_total"]),
+                "cost_input": float(r["cost_input"]),
+                "cost_output": float(r["cost_output"]),
+                "cost_cache": float(r["cost_cache"]),
+                "avg_duration_ms": float(r["avg_duration_ms"]),
+            }
+            for r in rows
+        ]
+
     # -- 配额快照 -----------------------------------------------------------
 
     def save_quota_snapshot(self, payload: dict) -> None:
@@ -440,6 +480,36 @@ class Database:
         except ValueError:
             return None
         payload["_captured_at"] = row["captured_at"]
+        return payload
+
+    # -- 官方快照（commandcode.ai 公开文档页抓取结果） -----------------------
+
+    def save_official_snapshot(self, key: str, payload: dict, fetched_at: Optional[int] = None) -> int:
+        """写入一份官方数据快照（按 key 覆盖，仅保留最新一份）。"""
+        stamp = int(fetched_at if fetched_at is not None else time.time())
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO official_snapshots (key, payload_json, fetched_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET payload_json = excluded.payload_json, "
+                "fetched_at = excluded.fetched_at",
+                (key, json.dumps(payload, ensure_ascii=False), stamp),
+            )
+            self._conn.commit()
+        return stamp
+
+    def latest_official_snapshot(self, key: str) -> Optional[dict]:
+        """读取最新官方快照，附带 ``_fetched_at``。"""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT payload_json, fetched_at FROM official_snapshots WHERE key = ?", (key,)
+            ).fetchone()
+        if not row:
+            return None
+        try:
+            payload = json.loads(row["payload_json"])
+        except ValueError:
+            return None
+        payload["_fetched_at"] = row["fetched_at"]
         return payload
 
     # -- 同步状态 -----------------------------------------------------------

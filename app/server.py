@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
 
-from . import APP_NAME, __version__
+from . import APP_NAME, __version__, official
 from .cc_api import AuthError, CommandCodeAPIError, CommandCodeClient, encode_cursor
 from .db import Database
 
@@ -32,6 +32,8 @@ SYNC_MIN_INTERVAL_MIN = 1
 SYNC_MAX_INTERVAL_MIN = 30
 SCHEDULER_TICK_SEC = 20
 QUOTA_MIN_INTERVAL_SEC = 300       # 配额刷新最小间隔（5 分钟），避免每次同步都拉 4 个接口
+OFFICIAL_TTL_SEC = 86400           # 官方文档页抓取缓存（24 小时，官方无 JSON 契约故长缓存）
+OFFICIAL_SNAPSHOT_KEY = "official"  # official_snapshots 表的主键
 EXCHANGE_API_URL = "https://open.er-api.com/v6/latest/USD"
 RATE_CACHE_SEC = 86400             # 汇率缓存 24 小时
 RATE_FETCH_TIMEOUT_SEC = 15
@@ -198,6 +200,50 @@ class AppContext:
         if plan_id:
             self.db.set_setting("plan_id", plan_id)
         return {"ok": True, "plan": plan_info(plan_id), "captured_at": int(time.time())}
+
+    # -- 官方套餐 / 模型信息（commandcode.ai 文档页） -------------------------
+
+    def plan_slug(self) -> Optional[str]:
+        """当前订阅套餐对应的官方文档页 slug；未知套餐返回 ``None``（只抓单价页）。"""
+        plan_id = (self.db.get_setting("plan_id") or "").strip().lower().replace("_", "-")
+        return official.PLAN_SLUGS.get(plan_id)
+
+    def refresh_official(self, force: bool = False) -> dict:
+        """抓取官方套餐/模型信息（默认 24h 缓存；失败降级为上次快照并标记 stale）。"""
+        slug = self.plan_slug()
+        cached = self.db.latest_official_snapshot(OFFICIAL_SNAPSHOT_KEY)
+        fetched_at = int((cached or {}).get("_fetched_at") or 0)
+        fresh = bool(fetched_at) and (time.time() - fetched_at) < OFFICIAL_TTL_SEC
+        if cached and fresh and not force and cached.get("plan_slug") == slug:
+            return {"ok": True, "snapshot": cached, "stale": False, "error": None}
+        try:
+            snapshot = official.fetch_official_snapshot(slug)
+        except Exception as exc:  # noqa: BLE001 抓取/解析异常统一降级，不影响其它功能
+            message = str(exc) or exc.__class__.__name__
+            if cached:
+                return {"ok": True, "snapshot": cached, "stale": True, "error": message}
+            return {"ok": False, "snapshot": None, "stale": True, "error": message}
+        stamp = self.db.save_official_snapshot(
+            OFFICIAL_SNAPSHOT_KEY, snapshot, snapshot.get("fetched_at")
+        )
+        snapshot["_fetched_at"] = stamp
+        return {"ok": True, "snapshot": snapshot, "stale": False, "error": None}
+
+    def official_local_usage(self) -> dict:
+        """本地按模型用量（优先计费周期内，无周期信息时取全部），键为规范化模型名。"""
+        start, end = self.resolve_range("billing")
+        usage: dict[str, dict] = {}
+        for row in self.db.model_usage_detail(start, end):
+            name = row.get("model") or ""
+            if not official.is_model_value(name):
+                continue
+            key = official.normalize_model_key(name)
+            if not key:
+                continue
+            entry = dict(row)
+            entry["_key"] = key
+            usage[key] = entry
+        return usage
 
     def should_sync_now(self) -> bool:
         """是否已到自动同步时机（避免启动/登录时做无谓请求）。"""
@@ -532,6 +578,24 @@ class ApiHandler(BaseHTTPRequestHandler):
             },
         })
 
+    def _api_official_models(self, query) -> None:
+        """官方套餐 / 模型信息 + 本地实测对比（默认走 24h 缓存）。"""
+        self._send_json(self._official_payload(force=False))
+
+    def _api_official_refresh(self, query) -> None:
+        """强制重新抓取官方文档页。"""
+        self._send_json(self._official_payload(force=True))
+
+    def _official_payload(self, force: bool) -> dict:
+        ctx = self.ctx
+        result = ctx.refresh_official(force=force)
+        return official.build_snapshot_response(
+            result.get("snapshot"),
+            ctx.official_local_usage(),
+            stale=bool(result.get("stale")),
+            error=result.get("error"),
+        )
+
     def _api_settings_get(self, query) -> None:
         db = self.ctx.db
         settings = db.all_settings(mask_secrets=True)
@@ -661,6 +725,8 @@ _ROUTES = {
     ("GET", "/api/records"): "_api_records",
     ("GET", "/api/models-list"): "_api_models_list",
     ("GET", "/api/quota"): "_api_quota",
+    ("GET", "/api/official-models"): "_api_official_models",
+    ("POST", "/api/official/refresh"): "_api_official_refresh",
     ("GET", "/api/rate"): "_api_rate",
     ("GET", "/api/settings"): "_api_settings_get",
     ("GET", "/api/verify"): "_api_verify",
