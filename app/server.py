@@ -36,6 +36,7 @@ EXCHANGE_API_URL = "https://open.er-api.com/v6/latest/USD"
 RATE_CACHE_SEC = 86400             # 汇率缓存 24 小时
 RATE_FETCH_TIMEOUT_SEC = 15
 CURRENCY_MODES = ("usd", "cny", "both")
+NUMBER_UNIT_MODES = ("cn", "en", "plain")   # 数字单位：中文单位 / 英文单位 / 原始数字
 
 PLAN_MONTHLY_CREDITS = {
     "individual-go": 10,
@@ -74,6 +75,15 @@ def plan_info(plan_id: Optional[str]) -> dict:
     if not name and key:
         name = key.replace("individual-", "").replace("teams-", "Teams ").title()
     return {"plan_id": plan_id, "name": name or None, "monthly_credits": PLAN_MONTHLY_CREDITS.get(key)}
+
+
+def normalize_number_unit(value) -> Optional[str]:
+    """数字单位模式校验：合法值原样返回，非法 / 空值返回 None。
+
+    None 表示「未显式设置」，由前端按界面语言派生默认（zh→cn、en→en）。
+    """
+    text = str(value).strip().lower() if value is not None else ""
+    return text if text in NUMBER_UNIT_MODES else None
 
 
 def read_cli_api_key() -> str:
@@ -531,6 +541,8 @@ class ApiHandler(BaseHTTPRequestHandler):
         settings["sync_range_days"] = str(
             _to_int(db.get_setting("sync_range_days"), DEFAULT_SYNC_RANGE_DAYS))
         settings["currency_mode"] = db.get_setting("currency_mode") or "both"
+        # 未显式设置时返回空串，交由前端按界面语言派生生效值
+        settings["number_unit"] = normalize_number_unit(db.get_setting("number_unit")) or ""
         self._send_json({
             "ok": True,
             "settings": settings,
@@ -538,6 +550,7 @@ class ApiHandler(BaseHTTPRequestHandler):
                 "sync_interval_min": [1, 5, 15, 30],
                 "sync_range_days": [30, 60, 90, 180, 0],
                 "currency_mode": list(CURRENCY_MODES),
+                "number_unit": list(NUMBER_UNIT_MODES),
             },
         })
 
@@ -545,7 +558,7 @@ class ApiHandler(BaseHTTPRequestHandler):
         payload = self._read_body_json()
         db = self.ctx.db
         allowed = {"sync_interval_min", "sync_range_days", "theme", "lang",
-                   "cookie_header", "api_key", "currency_mode"}
+                   "cookie_header", "api_key", "currency_mode", "number_unit"}
         updated = {}
         for key, value in payload.items():
             if key not in allowed:
@@ -557,6 +570,11 @@ class ApiHandler(BaseHTTPRequestHandler):
             elif key == "currency_mode":
                 if value not in CURRENCY_MODES:
                     continue
+            elif key == "number_unit":
+                normalized = normalize_number_unit(value)
+                if normalized is None:
+                    continue
+                value = normalized
             db.set_setting(key, None if value in (None, "") else str(value))
             updated[key] = True
         self.ctx.reload_credentials()

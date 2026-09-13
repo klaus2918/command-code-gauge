@@ -296,6 +296,14 @@
             <button data-currency-value="cny">CNY</button>
           </div>
         </div>
+        <div class="field-row">
+          <span class="muted" data-i18n="settings.numberUnit">数字单位</span>
+          <div class="seg" id="numberUnitSeg">
+            <button data-unit-value="cn" class="active" data-i18n="settings.unitCn">中文单位</button>
+            <button data-unit-value="en" data-i18n="settings.unitEn">英文单位</button>
+            <button data-unit-value="plain" data-i18n="settings.unitPlain">原始数字</button>
+          </div>
+        </div>
         <div class="muted small" id="rateInfo"></div>
       </div>
     </section>
@@ -322,6 +330,7 @@
   <div class="toast hidden" id="toast"></div>
 
   <script src="chart.umd.min.js"></script>
+  <script src="units.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

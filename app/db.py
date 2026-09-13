@@ -69,6 +69,8 @@ SETTING_KEYS = (
     "sync_range_days",     # 历史范围（天）
     "theme",               # light | dark
     "lang",                # zh | en
+    "currency_mode",       # usd | cny | both（此前漏登记，随本次补上）
+    "number_unit",         # 数字单位：cn | en | plain
     "last_sync_at",
     "last_sync_error",
     "cookie_valid",

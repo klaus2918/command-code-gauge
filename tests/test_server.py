@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """server 单元测试：范围解析、窗口视图、计划信息、同步规划。"""
+import json
 import time
+import urllib.request
 from datetime import datetime, timezone
 
 import pytest
@@ -8,8 +10,10 @@ import pytest
 from app.cc_api import UsageRecord, decode_cursor
 from app.server import (
     AppContext,
+    Server,
     _window_view,
     local_tz_offset_sec,
+    normalize_number_unit,
     plan_info,
 )
 from app.db import Database
@@ -288,3 +292,65 @@ class TestExchangeRate:
         assert result["ok"] is False
         assert result["rate"] is None
         assert "error" in result
+
+
+class TestNumberUnitSetting:
+    """数字单位：校验助手 + 设置接口读写（通过真实 HTTP 服务验证白名单行为）。"""
+
+    @pytest.fixture()
+    def api(self, ctx):
+        server = Server(ctx)
+        yield server
+        server.stop()
+
+    @staticmethod
+    def _request(server, method, path, payload=None):
+        data = json.dumps(payload).encode("utf-8") if payload is not None else None
+        request = urllib.request.Request(
+            server.base_url.rstrip("/") + path,
+            data=data,
+            method=method,
+            headers={"Content-Type": "application/json"} if data else {},
+        )
+        with urllib.request.urlopen(request, timeout=5) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def test_normalize_accepts_valid_modes(self):
+        for mode in ("cn", "en", "plain"):
+            assert normalize_number_unit(mode) == mode
+
+    def test_normalize_trims_case_and_whitespace(self):
+        assert normalize_number_unit(" CN ") == "cn"
+        assert normalize_number_unit("Plain") == "plain"
+
+    def test_normalize_rejects_invalid_and_empty(self):
+        for bad in ("", " ", None, "bogus", "zh", 0, [], "cn-us"):
+            assert normalize_number_unit(bad) is None
+
+    def test_settings_expose_modes_and_empty_default(self, api):
+        data = self._request(api, "GET", "/api/settings")
+        assert data["ok"] is True
+        # 未显式设置时返回空串，由前端按界面语言派生生效值（不预写默认值）
+        assert data["settings"]["number_unit"] == ""
+        assert data["options"]["number_unit"] == ["cn", "en", "plain"]
+
+    def test_set_number_unit_persists(self, api, ctx):
+        res = self._request(api, "POST", "/api/settings", {"number_unit": "plain"})
+        assert res["ok"] is True
+        assert "number_unit" in res["updated"]
+        assert ctx.db.get_setting("number_unit") == "plain"
+        assert self._request(api, "GET", "/api/settings")["settings"]["number_unit"] == "plain"
+
+    def test_set_number_unit_normalizes_input(self, api, ctx):
+        self._request(api, "POST", "/api/settings", {"number_unit": " CN "})
+        assert ctx.db.get_setting("number_unit") == "cn"
+
+    def test_invalid_number_unit_rejected_without_write(self, api, ctx):
+        res = self._request(api, "POST", "/api/settings", {"number_unit": "bogus"})
+        assert res["updated"] == []
+        assert ctx.db.get_setting("number_unit") is None
+
+    def test_unknown_setting_key_ignored(self, api, ctx):
+        res = self._request(api, "POST", "/api/settings", {"bogus_key": "x"})
+        assert res["updated"] == []
+        assert ctx.db.get_setting("bogus_key") is None

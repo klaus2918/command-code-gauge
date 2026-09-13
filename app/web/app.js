@@ -38,6 +38,8 @@
       'settings.relogin': '重新登录', 'settings.logout': '退出登录',
       'settings.appearance': '外观', 'settings.theme': '主题', 'settings.light': '亮色', 'settings.dark': '深色',
       'settings.lang': '语言', 'settings.currency': '货币显示',
+      'settings.numberUnit': '数字单位', 'settings.unitCn': '中文单位',
+      'settings.unitEn': '英文单位', 'settings.unitPlain': '原始数字',
       'settings.rateInfo': '汇率 1 USD ≈ ¥{r}（24 小时缓存，open.er-api.com）',
       'settings.rateFailed': '汇率暂不可用，当前仅显示美元',
       'about.title': '关于',
@@ -89,6 +91,8 @@
       'settings.relogin': 'Re-login', 'settings.logout': 'Sign out',
       'settings.appearance': 'Appearance', 'settings.theme': 'Theme', 'settings.light': 'Light', 'settings.dark': 'Dark',
       'settings.lang': 'Language', 'settings.currency': 'Currency',
+      'settings.numberUnit': 'Number units', 'settings.unitCn': 'Chinese',
+      'settings.unitEn': 'English', 'settings.unitPlain': 'Plain',
       'settings.rateInfo': 'Rate 1 USD ≈ ¥{r} (24h cache, open.er-api.com)',
       'settings.rateFailed': 'Exchange rate unavailable — showing USD only',
       'about.title': 'About',
@@ -129,6 +133,7 @@
     trendLabels: [],
     rate: 0,                 // USD→CNY 汇率（0 表示未获取，仅显示美元）
     currencyMode: 'both',    // usd | cny | both
+    unitMode: localStorage.getItem('ccgauge.unit') || '',  // cn | en | plain；空串=未显式设置（按语言派生）
     status: null,
     charts: {},
     pollTimer: null,
@@ -144,12 +149,29 @@
     return n.toLocaleString('en-US');
   }
 
+  /** 数字单位生效模式：已显式设置则用设置值，未设置时按界面语言派生（zh→cn、en→en）。 */
+  function effectiveUnitMode() {
+    return window.CCGaugeUnits
+      ? window.CCGaugeUnits.effectiveUnitMode(state.unitMode, state.lang)
+      : 'en';
+  }
+
+  /**
+   * Token 用量紧凑展示：按生效的数字单位模式格式化（cn / en / plain）。
+   * 档位与模式逻辑集中在 units.js（纯函数，可被 node --test 直接覆盖）；
+   * 万一 units.js 未加载，退回完整数字，避免出现空白数字。
+   */
   function fmtCompact(value) {
-    const n = Number(value) || 0;
-    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
-    if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-    return String(n);
+    return window.CCGaugeUnits
+      ? window.CCGaugeUnits.formatCompact(value, effectiveUnitMode())
+      : fmtInt(value);
+  }
+
+  /** 图表 tooltip 用：紧凑与完整数字双显（原始数字模式下两者相同则只显示一次）。 */
+  function fmtTokenTip(value) {
+    const compact = fmtCompact(value);
+    const full = fmtInt(value);
+    return compact === full ? full : `${compact}（${full}）`;
   }
 
   /** 金额格式化：按货币模式输出美元 / 人民币 / 双显（汇率未就绪时仅美元）。 */
@@ -263,6 +285,13 @@
     document.querySelectorAll('#langSeg button').forEach((b) => {
       b.classList.toggle('active', b.dataset.langValue === lang);
     });
+    if (state.status) renderAll();
+  }
+
+  /** 数字单位切换：本地缓存 + 服务端设置由调用方持久化，这里负责重绘。 */
+  function applyUnitMode(mode) {
+    state.unitMode = mode;
+    localStorage.setItem('ccgauge.unit', mode);
     if (state.status) renderAll();
   }
 
@@ -408,7 +437,9 @@
     const o = data.overview || {};
     $('ovRequests').textContent = fmtInt(o.requests);
     $('ovTokens').textContent = fmtCompact(o.total_tokens);
+    $('ovTokens').title = `${t('metric.totalTokens')}: ${fmtInt(o.total_tokens)}`;   // 悬停读完整数字
     $('ovTokensSub').textContent = `↑${fmtCompact(o.tokens_in)} ↓${fmtCompact(o.tokens_out)}`;
+    $('ovTokensSub').title = `↑${fmtInt(o.tokens_in)} ↓${fmtInt(o.tokens_out)}`;
     $('ovCost').textContent = fmtCost(o.cost_total);
     $('ovCostSub').textContent = `${t('cost.cache')} ${fmtCost(o.cost_cache)}`;
     $('ovCache').textContent = ((o.cache_cost_ratio || 0) * 100).toFixed(1) + '%';
@@ -457,7 +488,7 @@
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { labels: { color: c.text, boxWidth: 10, boxHeight: 10, usePointStyle: true } },
-          tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtInt(item.parsed.y)}` } },
+          tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtTokenTip(item.parsed.y)}` } },
         },
         scales: {
           x: { ticks: { color: c.text, maxRotation: 0, autoSkip: true }, grid: { display: false } },
@@ -509,7 +540,9 @@
     $('segIn').style.width = inPct.toFixed(1) + '%';
     $('segOut').style.width = (100 - inPct).toFixed(1) + '%';
     $('tokenInVal').textContent = fmtCompact(o.tokens_in);
+    $('tokenInVal').title = fmtInt(o.tokens_in);
     $('tokenOutVal').textContent = fmtCompact(o.tokens_out);
+    $('tokenOutVal').title = fmtInt(o.tokens_out);
 
     $('costRows').innerHTML = [
       [t('cost.input'), fmtCost(o.cost_input)],
@@ -530,9 +563,9 @@
       ? models.map((m) => `<tr>
           <td>${escapeHtml(m.model)}</td>
           <td class="num">${fmtInt(m.requests)}</td>
-          <td class="num">${fmtCompact(m.tokens_in)}</td>
-          <td class="num">${fmtCompact(m.tokens_out)}</td>
-          <td class="num">${fmtCompact(m.total_tokens)}</td>
+          <td class="num" title="${fmtInt(m.tokens_in)}">${fmtCompact(m.tokens_in)}</td>
+          <td class="num" title="${fmtInt(m.tokens_out)}">${fmtCompact(m.tokens_out)}</td>
+          <td class="num" title="${fmtInt(m.total_tokens)}">${fmtCompact(m.total_tokens)}</td>
           <td class="num">${fmtCost(m.cost_total)}</td>
         </tr>`).join('')
       : `<tr><td colspan="6" class="empty">${t('empty.models')}</td></tr>`;
@@ -626,7 +659,7 @@
             },
           ],
         },
-        options: trendOptions(c, fmtCompact, { stacked: true, legend: true }),
+        options: trendOptions(c, fmtCompact, { stacked: true, legend: true, tooltipFormatter: fmtTokenTip }),
       };
     } else {
       config = {
@@ -663,10 +696,12 @@
     if (hintEl) hintEl.textContent = (list.length && list.length < 4) ? t('stats.sparseHint') : '';
   }
 
-  /** 趋势图通用配置：单一 Y 轴（每图一个量纲），固定高度容器。 */
+  /** 趋势图通用配置：单一 Y 轴（每图一个量纲），固定高度容器。
+   *  extra.axisFormatter 覆盖轴刻度格式；extra.tooltipFormatter 覆盖 tooltip 格式（默认与轴一致）。 */
   function trendOptions(c, formatter, extra) {
     const opts = extra || {};
     const axisFormatter = opts.axisFormatter || formatter;
+    const tooltipFormatter = opts.tooltipFormatter || formatter;
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -680,7 +715,7 @@
           callbacks: {
             label: (item) => {
               const name = item.dataset.label ? `${item.dataset.label}: ` : '';
-              return `${name}${formatter(item.parsed.y)}`;
+              return `${name}${tooltipFormatter(item.parsed.y)}`;
             },
           },
         },
@@ -711,8 +746,8 @@
           <td>${r.day}</td>
           <td>${escapeHtml(r.model)}</td>
           <td class="num">${fmtInt(r.requests)}</td>
-          <td class="num">${fmtCompact(r.tokens_in)}</td>
-          <td class="num">${fmtCompact(r.tokens_out)}</td>
+          <td class="num" title="${fmtInt(r.tokens_in)}">${fmtCompact(r.tokens_in)}</td>
+          <td class="num" title="${fmtInt(r.tokens_out)}">${fmtCompact(r.tokens_out)}</td>
           <td class="num">${fmtCost(r.cost_total)}</td>
           <td class="num">${fmtDuration(r.avg_duration_ms)}</td>
         </tr>`).join('')
@@ -731,9 +766,9 @@
           <td class="mono">${fmtTime(r.created_ts)}</td>
           <td>${escapeHtml(r.model)}</td>
           <td>${escapeHtml(r.mode || '')}</td>
-          <td class="num">${fmtCompact(r.tokens_in)}</td>
-          <td class="num">${fmtCompact(r.tokens_out)}</td>
-          <td class="num">${fmtCompact(r.total_tokens)}</td>
+          <td class="num" title="${fmtInt(r.tokens_in)}">${fmtCompact(r.tokens_in)}</td>
+          <td class="num" title="${fmtInt(r.tokens_out)}">${fmtCompact(r.tokens_out)}</td>
+          <td class="num" title="${fmtInt(r.total_tokens)}">${fmtCompact(r.total_tokens)}</td>
           <td class="num">${fmtDuration(r.duration_ms)}</td>
           <td class="num">${fmtCost(r.cost_total)}</td>
         </tr>`).join('')
@@ -761,6 +796,8 @@
     if (s.sync_range_days !== undefined) $('setRange').value = s.sync_range_days;
     if (s.currency_mode) state.currencyMode = s.currency_mode;
     toggleSeg('currencySeg', 'currencyValue', state.currencyMode);
+    if (s.number_unit) state.unitMode = s.number_unit;
+    toggleSeg('numberUnitSeg', 'unitValue', effectiveUnitMode());
     updateRateInfo();
     $('setUserName').textContent = s.user_name || '--';
     const plan = state.status && state.status.plan;
@@ -870,6 +907,14 @@
       renderAll();          // 金额全部重绘
     });
 
+    $('numberUnitSeg').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      applyUnitMode(btn.dataset.unitValue);
+      toggleSeg('numberUnitSeg', 'unitValue', state.unitMode);
+      persistSetting('number_unit', state.unitMode);
+    });
+
     $('homeRange').addEventListener('click', (e) => {
       const btn = e.target.closest('.tab');
       if (!btn) return;
@@ -946,6 +991,9 @@
       }
       if (saved.currency_mode) {
         state.currencyMode = saved.currency_mode;
+      }
+      if (saved.number_unit) {
+        state.unitMode = saved.number_unit;
       }
     } catch (_) { /* 服务端不可用时使用本地默认 */ }
     // 汇率（USD→CNY，24 小时缓存；获取失败则仅显示美元）

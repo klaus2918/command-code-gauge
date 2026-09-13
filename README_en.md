@@ -17,6 +17,7 @@
 - **Built-in WebView login**: a dedicated login window opens the official sign-in page and captures the session credentials automatically — no manual cookie copying
 - **Auto sync (incremental-first)**: routine syncs only fetch new records (usually 1–2 requests); the first run or the “Backfill history” button walks backwards and **resumes from the earliest locally stored record**, so already-fetched ranges are never re-requested. Interval 1 / 5 / 15 / 30 min and range (30 / 60 / 90 / 180 days / all) are configurable; quota data refreshes on a separate 5-minute throttle
 - **Dual theme + bilingual**: light / dark themes, Chinese / English UI
+- **Switchable token units**: Chinese units (`2.48亿`, `97.83万`; values below 10,000 stay plain, e.g. `7719`) / English units (`247.51M`) / plain numbers (`247,506,388`); the default follows the UI language until you pick one explicitly, and compact values reveal the exact number on hover
 - **System tray**: close-to-tray, with show window / sync now / quit menu
 - **Single instance**: launching again focuses the existing window
 
@@ -53,7 +54,8 @@ Produces `dist\CCGauge.exe` (single file, with icon and tray support).
 
 ```bash
 pip install -r requirements-dev.txt
-pytest tests/ -v
+pytest tests/ -v                      # backend (Python)
+node --test "tests/js/*.test.mjs"     # frontend token-unit formatting (Node's built-in test runner, no npm install)
 ```
 
 ## 📊 Data
@@ -63,6 +65,7 @@ pytest tests/ -v
 - **Total tokens** = input + output
 - **Cache cost ratio** = cache cost / (input cost + cache cost)
 - Costs are raw USD; the panel supports **USD / CNY / both** display modes (switchable in Settings), with CNY converted at the live [open.er-api.com](https://open.er-api.com) rate (24-hour cache, gracefully falls back to USD only)
+- **Token unit modes**: **Chinese units** (万亿 / 亿 / 千万 / 百万 / 万; values below 10,000 stay plain — e.g. `2.48亿`, `97.83万`, `7719`), **English units** (`247.51M`) or **plain numbers** (`247,506,388`) — switchable in Settings; until you pick one, the mode follows the UI language (Chinese → Chinese units, English → English units)
 - Records are deduplicated by server record id; incremental sync is idempotent
 
 ## 🔒 Privacy
