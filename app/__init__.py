@@ -8,6 +8,6 @@
 - main     pywebview 窗口 / 托盘 / 单实例
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 APP_NAME = "CCGauge"
 APP_TITLE = "CCGauge - Command Code 用量仪表盘"
