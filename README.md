@@ -61,7 +61,7 @@ pytest tests/ -v
 - **配额数据**：`/alpha/billing/credits`（5 小时 / 每周窗口 + 信用余额）、`/alpha/billing/subscriptions`（计划与计费周期）、`/alpha/usage/summary`（服务端汇总）
 - **总 Token** = 输入 + 输出
 - **缓存成本占比** = 缓存成本 /（输入成本 + 缓存成本）
-- 费用为 USD 原始值
+- 费用为 USD 原始值；支持 **USD / CNY / 双显** 三种口径（设置页切换），人民币按 [open.er-api.com](https://open.er-api.com) 实时汇率换算（24 小时缓存，获取失败时自动降级为仅显示美元）
 - 明细按服务端记录 ID 去重入库，增量同步幂等可重复执行
 
 ### 同步机制

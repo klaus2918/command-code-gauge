@@ -209,3 +209,82 @@ class TestSyncPlanning:
         result = ctx.run_sync("full")
         assert result["inserted"] == 1
         assert "历史已完整" in result["stop_reason"]
+
+
+class TestExchangeRate:
+    """USD→CNY 汇率：24h 缓存、失败沿用旧值、解析与异常处理。"""
+
+    def test_fetch_rate_parses_response(self, monkeypatch):
+        from app import server
+
+        class FakeResponse:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"result": "success", "rates": {"USD": 1, "CNY": 7.1834}}
+
+        monkeypatch.setattr(server.requests, "get", lambda *a, **k: FakeResponse())
+        assert server.fetch_usd_cny_rate() == pytest.approx(7.1834)
+
+    def test_fetch_rate_handles_network_error(self, monkeypatch):
+        from app import server
+
+        def boom(*a, **k):
+            raise RuntimeError("network down")
+
+        monkeypatch.setattr(server.requests, "get", boom)
+        assert server.fetch_usd_cny_rate() is None
+
+    def test_fetch_rate_rejects_non_200(self, monkeypatch):
+        from app import server
+
+        class FakeResponse:
+            status_code = 502
+            text = "bad gateway"
+
+            @staticmethod
+            def json():
+                return {}
+
+        monkeypatch.setattr(server.requests, "get", lambda *a, **k: FakeResponse())
+        assert server.fetch_usd_cny_rate() is None
+
+    def test_refresh_rate_uses_cache_within_24h(self, ctx, monkeypatch):
+        ctx.db.set_setting("usd_cny_rate", "7.1234")
+        ctx.db.set_setting("usd_cny_rate_at", str(int(time.time())))
+        calls = {"n": 0}
+
+        def fake_fetch(*a, **k):
+            calls["n"] += 1
+            return 8.0
+
+        monkeypatch.setattr("app.server.fetch_usd_cny_rate", fake_fetch)
+        result = ctx.refresh_rate()
+        assert result["cached"] is True
+        assert result["rate"] == pytest.approx(7.1234)
+        assert calls["n"] == 0                     # 命中缓存，不发起网络请求
+
+    def test_refresh_rate_fetches_and_persists(self, ctx, monkeypatch):
+        monkeypatch.setattr("app.server.fetch_usd_cny_rate", lambda *a, **k: 7.25)
+        result = ctx.refresh_rate()
+        assert result["ok"] is True
+        assert result["rate"] == pytest.approx(7.25)
+        assert result["cached"] is False
+        assert ctx.db.get_setting("usd_cny_rate") == "7.25"
+
+    def test_refresh_rate_falls_back_to_stale_value(self, ctx, monkeypatch):
+        ctx.db.set_setting("usd_cny_rate", "6.9")
+        ctx.db.set_setting("usd_cny_rate_at", str(int(time.time()) - 90000))  # 超过 24h
+        monkeypatch.setattr("app.server.fetch_usd_cny_rate", lambda *a, **k: None)
+        result = ctx.refresh_rate()
+        assert result["ok"] is True
+        assert result["rate"] == pytest.approx(6.9)
+        assert result.get("stale") is True
+
+    def test_refresh_rate_no_cache_and_failure(self, ctx, monkeypatch):
+        monkeypatch.setattr("app.server.fetch_usd_cny_rate", lambda *a, **k: None)
+        result = ctx.refresh_rate()
+        assert result["ok"] is False
+        assert result["rate"] is None
+        assert "error" in result

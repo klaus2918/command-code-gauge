@@ -37,7 +37,9 @@
       'settings.account': '账户', 'settings.user': '用户', 'settings.plan': '计划', 'settings.credential': '登录态',
       'settings.relogin': '重新登录', 'settings.logout': '退出登录',
       'settings.appearance': '外观', 'settings.theme': '主题', 'settings.light': '亮色', 'settings.dark': '深色',
-      'settings.lang': '语言',
+      'settings.lang': '语言', 'settings.currency': '货币显示',
+      'settings.rateInfo': '汇率 1 USD ≈ ¥{r}（24 小时缓存，open.er-api.com）',
+      'settings.rateFailed': '汇率暂不可用，当前仅显示美元',
       'about.title': '关于',
       'about.desc': 'Command Code 用量面板：配额窗口、Token 构成、模型排行、按日聚合与自动同步。数据默认保存在本机 SQLite；登录凭据仅保存在本机，不会上传到任何第三方。',
       'about.source': '数据来源', 'about.storage': '数据存储',
@@ -86,7 +88,9 @@
       'settings.account': 'Account', 'settings.user': 'User', 'settings.plan': 'Plan', 'settings.credential': 'Session',
       'settings.relogin': 'Re-login', 'settings.logout': 'Sign out',
       'settings.appearance': 'Appearance', 'settings.theme': 'Theme', 'settings.light': 'Light', 'settings.dark': 'Dark',
-      'settings.lang': 'Language',
+      'settings.lang': 'Language', 'settings.currency': 'Currency',
+      'settings.rateInfo': 'Rate 1 USD ≈ ¥{r} (24h cache, open.er-api.com)',
+      'settings.rateFailed': 'Exchange rate unavailable — showing USD only',
       'about.title': 'About',
       'about.desc': 'Command Code usage panel: quota windows, token breakdown, model ranking, daily aggregation and auto sync. Data is stored locally in SQLite; credentials never leave this machine.',
       'about.source': 'Data source', 'about.storage': 'Storage',
@@ -123,6 +127,8 @@
     trendMetric: 'cost',
     trendSeries: [],
     trendLabels: [],
+    rate: 0,                 // USD→CNY 汇率（0 表示未获取，仅显示美元）
+    currencyMode: 'both',    // usd | cny | both
     status: null,
     charts: {},
     pollTimer: null,
@@ -146,12 +152,33 @@
     return String(n);
   }
 
+  /** 金额格式化：按货币模式输出美元 / 人民币 / 双显（汇率未就绪时仅美元）。 */
   function fmtCost(value) {
-    const n = Number(value) || 0;
-    if (n === 0) return '$0';
-    if (n < 0.01) return '$' + n.toFixed(6);
-    if (n < 1) return '$' + n.toFixed(4);
-    return '$' + n.toFixed(2);
+    const usd = Number(value) || 0;
+    const rate = state.rate;
+    const mode = rate > 0 ? state.currencyMode : 'usd';
+    if (usd === 0) {
+      if (mode === 'cny') return '¥0';
+      if (mode === 'both') return '$0（¥0）';
+      return '$0';
+    }
+    let usdText;
+    if (usd < 0.01) usdText = usd.toFixed(6);
+    else if (usd < 1) usdText = usd.toFixed(4);
+    else usdText = usd.toFixed(2);
+    const cnyText = (usd * rate).toFixed(2);
+    if (mode === 'cny') return '¥' + cnyText;
+    if (mode === 'both') return '$' + usdText + '（¥' + cnyText + '）';
+    return '$' + usdText;
+  }
+
+  /** 图表轴用紧凑金额（双显会超出轴宽，仅取当前主口径）。 */
+  function fmtCostAxis(value) {
+    const usd = Number(value) || 0;
+    if (state.rate > 0 && state.currencyMode === 'cny') {
+      return '¥' + (usd * state.rate).toFixed(2);
+    }
+    return '$' + usd.toFixed(2);
   }
 
   function fmtDuration(ms) {
@@ -615,7 +642,7 @@
             pointRadius: series.length > 40 ? 0 : 3,
           }],
         },
-        options: trendOptions(c, fmtCost),
+        options: trendOptions(c, fmtCost, { axisFormatter: fmtCostAxis }),
       };
     }
     state.charts.trend = new Chart($('chartTrend'), config);
@@ -639,6 +666,7 @@
   /** 趋势图通用配置：单一 Y 轴（每图一个量纲），固定高度容器。 */
   function trendOptions(c, formatter, extra) {
     const opts = extra || {};
+    const axisFormatter = opts.axisFormatter || formatter;
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -666,7 +694,7 @@
         y: {
           stacked: !!opts.stacked,
           beginAtZero: true,
-          ticks: { color: c.text, maxTicksLimit: 6, callback: (value) => formatter(value) },
+          ticks: { color: c.text, maxTicksLimit: 6, callback: (value) => axisFormatter(value) },
           grid: { color: c.grid },
         },
       },
@@ -731,11 +759,23 @@
     const s = data.settings || {};
     if (s.sync_interval_min) $('setInterval').value = s.sync_interval_min;
     if (s.sync_range_days !== undefined) $('setRange').value = s.sync_range_days;
+    if (s.currency_mode) state.currencyMode = s.currency_mode;
+    toggleSeg('currencySeg', 'currencyValue', state.currencyMode);
+    updateRateInfo();
     $('setUserName').textContent = s.user_name || '--';
     const plan = state.status && state.status.plan;
     $('setPlan').textContent = plan && plan.name ? plan.name : '--';
     $('setCredential').textContent = s.cookie_header ? '✓' : '--';
     $('btnLogout').disabled = !s.cookie_header;
+  }
+
+  /** 汇率信息行（设置页）。 */
+  function updateRateInfo() {
+    const el = $('rateInfo');
+    if (!el) return;
+    el.textContent = state.rate > 0
+      ? t('settings.rateInfo', { r: Number(state.rate).toFixed(4) })
+      : t('settings.rateFailed');
   }
 
   // ---------------------------------------------------------------- 工具
@@ -821,6 +861,15 @@
     $('setInterval').addEventListener('change', (e) => persistSetting('sync_interval_min', e.target.value));
     $('setRange').addEventListener('change', (e) => persistSetting('sync_range_days', e.target.value));
 
+    $('currencySeg').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      state.currencyMode = btn.dataset.currencyValue;
+      toggleSeg('currencySeg', 'currencyValue', state.currencyMode);
+      persistSetting('currency_mode', state.currencyMode);
+      renderAll();          // 金额全部重绘
+    });
+
     $('homeRange').addEventListener('click', (e) => {
       const btn = e.target.closest('.tab');
       if (!btn) return;
@@ -863,6 +912,13 @@
     $(groupId).querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b === activeBtn));
   }
 
+  /** 分段按钮通用切换（按 dataset 键匹配）。 */
+  function toggleSeg(groupId, dataKey, value) {
+    $(groupId).querySelectorAll('button').forEach((b) => {
+      b.classList.toggle('active', b.dataset[dataKey] === value);
+    });
+  }
+
   async function persistSetting(key, value) {
     try {
       await post('/api/settings', { [key]: value });
@@ -888,7 +944,16 @@
       if (!localStorage.getItem('ccgauge.lang') && saved.lang) {
         state.lang = saved.lang;
       }
+      if (saved.currency_mode) {
+        state.currencyMode = saved.currency_mode;
+      }
     } catch (_) { /* 服务端不可用时使用本地默认 */ }
+    // 汇率（USD→CNY，24 小时缓存；获取失败则仅显示美元）
+    try {
+      const rateInfo = await get('/api/rate');
+      state.rate = Number(rateInfo.rate) || 0;
+      if (rateInfo.mode) state.currencyMode = rateInfo.mode;
+    } catch (_) { /* 保持仅美元 */ }
     applyTheme(state.theme);
     applyLang(state.lang);
     bindEvents();

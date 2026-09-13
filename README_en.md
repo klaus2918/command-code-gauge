@@ -60,7 +60,7 @@ pytest tests/ -v
 - **Quota**: `/alpha/billing/credits` (5-hour / weekly windows + credits), `/alpha/billing/subscriptions` (plan and billing period), `/alpha/usage/summary` (server aggregates)
 - **Total tokens** = input + output
 - **Cache cost ratio** = cache cost / (input cost + cache cost)
-- Costs are raw USD values
+- Costs are raw USD; the panel supports **USD / CNY / both** display modes (switchable in Settings), with CNY converted at the live [open.er-api.com](https://open.er-api.com) rate (24-hour cache, gracefully falls back to USD only)
 - Records are deduplicated by server record id; incremental sync is idempotent
 
 ## 🔒 Privacy

@@ -16,6 +16,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
+import requests
+
 from . import APP_NAME, __version__
 from .cc_api import AuthError, CommandCodeAPIError, CommandCodeClient, encode_cursor
 from .db import Database
@@ -30,6 +32,10 @@ SYNC_MIN_INTERVAL_MIN = 1
 SYNC_MAX_INTERVAL_MIN = 30
 SCHEDULER_TICK_SEC = 20
 QUOTA_MIN_INTERVAL_SEC = 300       # 配额刷新最小间隔（5 分钟），避免每次同步都拉 4 个接口
+EXCHANGE_API_URL = "https://open.er-api.com/v6/latest/USD"
+RATE_CACHE_SEC = 86400             # 汇率缓存 24 小时
+RATE_FETCH_TIMEOUT_SEC = 15
+CURRENCY_MODES = ("usd", "cny", "both")
 
 PLAN_MONTHLY_CREDITS = {
     "individual-go": 10,
@@ -81,6 +87,27 @@ def read_cli_api_key() -> str:
             return (json.load(fh).get("apiKey") or "").strip()
     except (OSError, ValueError):
         return ""
+
+
+def fetch_usd_cny_rate(timeout: int = RATE_FETCH_TIMEOUT_SEC) -> Optional[float]:
+    """获取 USD→CNY 实时汇率（open.er-api.com，免费无 Key）。
+
+    返回 None 表示获取失败（调用方降级为仅显示美元）。
+    """
+    try:
+        response = requests.get(
+            EXCHANGE_API_URL,
+            timeout=timeout,
+            headers={"User-Agent": "CCGauge/0.1", "Accept": "application/json"},
+        )
+        if response.status_code != 200:
+            return None
+        payload = response.json()
+        value = (payload.get("rates") or {}).get("CNY")
+        rate = float(value) if value else 0.0
+        return rate if rate > 0 else None
+    except Exception:  # noqa: BLE001 网络/解析异常统一降级
+        return None
 
 
 class AppContext:
@@ -168,6 +195,25 @@ class AppContext:
         interval_min = max(SYNC_MIN_INTERVAL_MIN, min(interval_min, SYNC_MAX_INTERVAL_MIN))
         last_sync = _to_int(self.db.get_setting("last_sync_at"), 0)
         return time.time() - last_sync >= interval_min * 60
+
+    # -- 汇率（USD→CNY，展示用） --------------------------------------------
+
+    def refresh_rate(self, force: bool = False) -> dict:
+        """获取/刷新 USD→CNY 汇率（24 小时缓存；失败时沿用旧值）。"""
+        cached = self.db.get_setting("usd_cny_rate")
+        fetched_at = _to_int(self.db.get_setting("usd_cny_rate_at"), 0)
+        if not force and cached and time.time() - fetched_at < RATE_CACHE_SEC:
+            return {"ok": True, "rate": float(cached), "fetched_at": fetched_at, "cached": True}
+        rate = fetch_usd_cny_rate()
+        if rate:
+            now = int(time.time())
+            self.db.set_setting("usd_cny_rate", str(rate))
+            self.db.set_setting("usd_cny_rate_at", str(now))
+            return {"ok": True, "rate": rate, "fetched_at": now, "cached": False}
+        if cached:
+            return {"ok": True, "rate": float(cached), "fetched_at": fetched_at,
+                    "cached": True, "stale": True}
+        return {"ok": False, "rate": None, "error": "汇率获取失败（将仅显示美元）"}
 
     def run_sync(self, mode: str = "incremental") -> dict:
         """执行一次同步（阻塞）。
@@ -484,19 +530,22 @@ class ApiHandler(BaseHTTPRequestHandler):
             _to_int(db.get_setting("sync_interval_min"), DEFAULT_SYNC_INTERVAL_MIN))
         settings["sync_range_days"] = str(
             _to_int(db.get_setting("sync_range_days"), DEFAULT_SYNC_RANGE_DAYS))
+        settings["currency_mode"] = db.get_setting("currency_mode") or "both"
         self._send_json({
             "ok": True,
             "settings": settings,
             "options": {
                 "sync_interval_min": [1, 5, 15, 30],
                 "sync_range_days": [30, 60, 90, 180, 0],
+                "currency_mode": list(CURRENCY_MODES),
             },
         })
 
     def _api_settings_set(self, query) -> None:
         payload = self._read_body_json()
         db = self.ctx.db
-        allowed = {"sync_interval_min", "sync_range_days", "theme", "lang", "cookie_header", "api_key"}
+        allowed = {"sync_interval_min", "sync_range_days", "theme", "lang",
+                   "cookie_header", "api_key", "currency_mode"}
         updated = {}
         for key, value in payload.items():
             if key not in allowed:
@@ -505,10 +554,20 @@ class ApiHandler(BaseHTTPRequestHandler):
                 value = str(max(SYNC_MIN_INTERVAL_MIN, min(_to_int(value, DEFAULT_SYNC_INTERVAL_MIN), SYNC_MAX_INTERVAL_MIN)))
             elif key == "sync_range_days":
                 value = str(max(0, _to_int(value, DEFAULT_SYNC_RANGE_DAYS)))
+            elif key == "currency_mode":
+                if value not in CURRENCY_MODES:
+                    continue
             db.set_setting(key, None if value in (None, "") else str(value))
             updated[key] = True
         self.ctx.reload_credentials()
         self._send_json({"ok": True, "updated": sorted(updated.keys())})
+
+    def _api_rate(self, query) -> None:
+        """USD→CNY 汇率（24h 缓存；force=1 强制刷新）。"""
+        force = (_first(query, "force") or "") in ("1", "true")
+        result = self.ctx.refresh_rate(force=force)
+        result["mode"] = self.ctx.db.get_setting("currency_mode") or "both"
+        self._send_json(result)
 
     def _api_sync(self, query) -> None:
         payload = self._read_body_json()
@@ -584,6 +643,7 @@ _ROUTES = {
     ("GET", "/api/records"): "_api_records",
     ("GET", "/api/models-list"): "_api_models_list",
     ("GET", "/api/quota"): "_api_quota",
+    ("GET", "/api/rate"): "_api_rate",
     ("GET", "/api/settings"): "_api_settings_get",
     ("GET", "/api/verify"): "_api_verify",
     ("POST", "/api/settings"): "_api_settings_set",
